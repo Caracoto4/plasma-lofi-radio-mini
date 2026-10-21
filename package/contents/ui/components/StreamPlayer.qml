@@ -10,10 +10,6 @@ Item {
         {
             name: qsTr("lofi hip hop"),
             url: "http://live.lofiradio.ru:8000/lofi_mp3_128"
-        },
-        {
-            name: qsTr("lofi chill"),
-            url: "http://live.lofiradio.ru:8000/lofi_mp3_96"
         }
     ]
     property int stationIndex: 0

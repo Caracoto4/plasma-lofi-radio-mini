@@ -113,12 +113,6 @@ Item {
             opacity: 0.6
             Layout.fillWidth: true
         }
-
-        Kirigami.Heading {
-            level: 5
-            text: card.currentStation
-            opacity: 0.4
-        }
     }
 
     component TrackInfo: ColumnLayout {
@@ -165,21 +159,6 @@ Item {
         Item { Layout.fillWidth: true }
 
         Controls.ToolButton {
-            implicitWidth: 32
-            implicitHeight: 32
-            display: Controls.AbstractButton.IconOnly
-            onClicked: stream.previousStation()
-            Kirigami.Icon {
-                anchors.centerIn: parent
-                width: 16
-                height: 16
-                source: "media-skip-backward"
-            }
-            Controls.ToolTip.text: qsTr("Предыдущая станция")
-            Controls.ToolTip.visible: hovered
-        }
-
-        Controls.ToolButton {
             implicitWidth: 40
             implicitHeight: 40
             display: Controls.AbstractButton.IconOnly
@@ -208,21 +187,6 @@ Item {
                     stream.toggle();
             }
             Controls.ToolTip.text: card.playing ? qsTr("Пауза") : qsTr("Воспроизвести")
-            Controls.ToolTip.visible: hovered
-        }
-
-        Controls.ToolButton {
-            implicitWidth: 32
-            implicitHeight: 32
-            display: Controls.AbstractButton.IconOnly
-            onClicked: stream.nextStation()
-            Kirigami.Icon {
-                anchors.centerIn: parent
-                width: 16
-                height: 16
-                source: "media-skip-forward"
-            }
-            Controls.ToolTip.text: qsTr("Следующая станция")
             Controls.ToolTip.visible: hovered
         }
 
