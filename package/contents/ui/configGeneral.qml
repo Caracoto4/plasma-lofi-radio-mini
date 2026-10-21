@@ -35,19 +35,29 @@ Kirigami.FormLayout {
         Layout.fillWidth: true
     }
 
-    // Блок с командами для обновления
+    // Кнопка установки обновления
+    QQC2.Button {
+        visible: page.updateAvailable
+        text: i18n("Установить обновление")
+        icon.name: "download"
+        onClicked: installUpdate()
+        Layout.fillWidth: true
+    }
+
+    // Блок с командами для обновления (альтернативный способ)
     ColumnLayout {
         visible: page.updateAvailable
         spacing: Kirigami.Units.smallSpacing
         Layout.fillWidth: true
 
         QQC2.Label {
-            text: i18n("Команды для обновления:")
-            font.bold: true
+            text: i18n("Или выполните вручную:")
+            opacity: 0.7
+            font.italic: true
         }
 
         QQC2.Label {
-            text: "cd ~/plasma-lofi-radio-mini\ngit pull\n./update.sh"
+            text: "cd ~/plasma-lofi-radio-mini && git pull && ./update.sh"
             font.family: "monospace"
             font.pixelSize: theme.defaultFont.pointSize - 1
             wrapMode: Text.Wrap
@@ -123,5 +133,11 @@ Kirigami.FormLayout {
             }
         };
         xhr.send();
+    }
+
+    function installUpdate() {
+        // Открываем konsole с командой для обновления
+        Qt.openUrlExternally("konsole");
+        page.statusMessage = i18n("Откройте терминал и выполните:\ncd ~/plasma-lofi-radio-mini && git pull && ./update.sh");
     }
 }
