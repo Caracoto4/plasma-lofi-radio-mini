@@ -1,100 +1,76 @@
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Controls as Controls
+import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
-import org.kde.plasma.plasmoid
+import org.kde.kcmutils as KCMUtils
 
-Item {
+KCMUtils.SimpleKCM {
     id: configPage
 
-    implicitWidth: 400
-    implicitHeight: 300
-
-    property int currentVersion: 10100  // 1.1.0
+    property int currentVersion: 10100
     property string currentVersionString: "1.1.0"
     property string latestVersionString: ""
     property bool checking: false
     property bool updateAvailable: false
+    property string statusMessage: ""
 
-    ColumnLayout {
+    KCMUtils.ConfigModule.buttons: KCMUtils.ConfigModule.NoAdditionalButton
+
+    Kirigami.FormLayout {
         anchors.fill: parent
-        anchors.margins: Kirigami.Units.largeSpacing
-        spacing: Kirigami.Units.largeSpacing
 
-        Kirigami.Heading {
-            level: 2
-            text: qsTr("Настройки Lofi Radio Mini")
-            Layout.fillWidth: true
+        Item {
+            Kirigami.FormLayout.isSection: true
+            Kirigami.FormLayout.label: i18n("Информация")
+
+            QQC2.Label {
+                text: i18n("Версия: %1", configPage.currentVersionString)
+            }
         }
 
-        // Информация о версии
-        Kirigami.Separator {
-            Layout.fillWidth: true
-        }
+        Item {
+            Kirigami.FormLayout.label: i18n("Обновления")
 
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Kirigami.Units.largeSpacing
-
-            Kirigami.Heading {
-                level: 4
-                text: qsTr("Версия:")
-            }
-
-            Controls.Label {
-                text: configPage.currentVersionString
-                opacity: 0.7
-            }
-
-            Item { Layout.fillWidth: true }
-
-            Controls.Button {
-                text: checking ? qsTr("Проверка...") : qsTr("Проверить обновления")
-                enabled: !checking
+            QQC2.Button {
+                text: configPage.checking ? i18n("Проверка...") : i18n("Проверить обновления")
+                enabled: !configPage.checking
                 onClicked: checkForUpdates()
             }
         }
 
-        // Сообщение о результате проверки
-        Controls.Label {
-            visible: latestVersionString.length > 0
-            text: updateAvailable
-                  ? qsTr("Доступна новая версия: %1").arg(latestVersionString)
-                  : qsTr("У вас установлена последняя версия")
-            color: updateAvailable ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.textColor
-            opacity: 0.9
-            Layout.fillWidth: true
+        QQC2.Label {
+            visible: configPage.statusMessage.length > 0
+            text: configPage.statusMessage
+            color: configPage.updateAvailable ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.textColor
             wrapMode: Text.WordWrap
+            Layout.fillWidth: true
         }
 
-        // Кнопка обновления
-        Controls.Button {
-            visible: updateAvailable
-            text: qsTr("Скачать обновление")
+        QQC2.Button {
+            visible: configPage.updateAvailable
+            text: i18n("Скачать обновление")
             onClicked: Qt.openUrlExternally("https://github.com/Caracoto4/plasma-lofi-radio-mini/releases/latest")
-            Layout.fillWidth: true
         }
 
-        Item { Layout.fillHeight: true }
+        Item {
+            Kirigami.FormLayout.isSection: true
+            Kirigami.FormLayout.label: i18n("О виджете")
 
-        // Информация
-        Kirigami.Separator {
-            Layout.fillWidth: true
-        }
+            QQC2.Label {
+                text: i18n("Минималистичный виджет lofi-радио для KDE Plasma 6")
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+            }
 
-        Controls.Label {
-            text: qsTr("Виджет использует поток с lofiradio.ru")
-            opacity: 0.6
-            font.pixelSize: Kirigami.Units.gridUnit * 0.8
-            Layout.fillWidth: true
-        }
+            QQC2.Label {
+                text: i18n('Поток: <a href="https://lofiradio.ru">lofiradio.ru</a>')
+                onLinkActivated: Qt.openUrlExternally(link)
+            }
 
-        Controls.Label {
-            text: '<a href="https://github.com/Caracoto4/plasma-lofi-radio-mini">GitHub</a>'
-            onLinkActivated: Qt.openUrlExternally(link)
-            opacity: 0.6
-            font.pixelSize: Kirigami.Units.gridUnit * 0.8
-            Layout.fillWidth: true
+            QQC2.Label {
+                text: i18n('Репозиторий: <a href="https://github.com/Caracoto4/plasma-lofi-radio-mini">GitHub</a>')
+                onLinkActivated: Qt.openUrlExternally(link)
+            }
         }
     }
 
@@ -102,6 +78,7 @@ Item {
         checking = true;
         latestVersionString = "";
         updateAvailable = false;
+        statusMessage = i18n("Проверка обновлений...");
 
         var xhr = new XMLHttpRequest();
         xhr.open("GET", "https://api.github.com/repos/Caracoto4/plasma-lofi-radio-mini/releases/latest", true);
@@ -112,20 +89,23 @@ Item {
                     try {
                         var data = JSON.parse(xhr.responseText);
                         var tagName = data.tag_name || "";
-                        // Убираем 'v' в начале если есть
                         latestVersionString = tagName.replace(/^v/, "");
                         
-                        // Парсим версии для сравнения
                         var current = parseVersion(configPage.currentVersionString);
                         var latest = parseVersion(latestVersionString);
                         
                         if (latest > current) {
                             updateAvailable = true;
+                            statusMessage = i18n("Доступна новая версия: %1", latestVersionString);
+                        } else {
+                            statusMessage = i18n("У вас установлена последняя версия");
                         }
                     } catch (e) {
+                        statusMessage = i18n("Ошибка при проверке обновлений");
                         console.log("Failed to parse update info:", e);
                     }
                 } else {
+                    statusMessage = i18n("Не удалось проверить обновления (ошибка %1)", xhr.status);
                     console.log("Failed to check for updates, status:", xhr.status);
                 }
             }

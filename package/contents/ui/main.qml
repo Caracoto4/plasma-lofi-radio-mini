@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import org.kde.plasma.plasmoid
 import org.kde.plasma.core as PlasmaCore
 import org.kde.kirigami as Kirigami
+import org.kde.plasma.components as PlasmaComponents
 
 import "components" as Components
 
@@ -13,15 +14,13 @@ PlasmoidItem {
 
     readonly property Components.StreamPlayer engine: Components.StreamPlayer
 
-    readonly property var notifyPorts: [8731, 8732, 8733]
-
     // Восстановление состояния при загрузке
     Component.onCompleted: {
-        var savedVol = plasmoid.configuration.readEntry("volume", -1);
+        var savedVol = Plasmoid.configuration.readEntry("volume", -1);
         if (savedVol >= 0) {
             engine.volume = savedVol;
         }
-        var wasPlaying = plasmoid.configuration.readEntry("playing", false);
+        var wasPlaying = Plasmoid.configuration.readEntry("playing", false);
         if (wasPlaying) {
             engine.play();
         }
@@ -31,7 +30,7 @@ PlasmoidItem {
     Connections {
         target: engine
         function onVolumeChanged() {
-            plasmoid.configuration.writeEntry("volume", engine.volume);
+            Plasmoid.configuration.writeEntry("volume", engine.volume);
         }
     }
 
@@ -39,7 +38,7 @@ PlasmoidItem {
     Connections {
         target: engine
         function onPlayingChanged() {
-            plasmoid.configuration.writeEntry("playing", engine.playing);
+            Plasmoid.configuration.writeEntry("playing", engine.playing);
         }
         function onTrackChanged() {
             if (engine.title.length > 0 || engine.artist.length > 0) {
@@ -52,14 +51,17 @@ PlasmoidItem {
     }
 
     function sendNotification(title, text) {
-        for (var i = 0; i < notifyPorts.length; i++) {
-            var xhr = new XMLHttpRequest();
-            xhr.open("POST", "http://127.0.0.1:" + notifyPorts[i] + "/notify", true);
-            xhr.setRequestHeader("Content-Type", "application/json");
-            xhr.send(JSON.stringify({ title: title, text: text }));
-            // Не ждём ответа, просто отправляем на первый доступный порт
-            break;
-        }
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                if (xhr.status !== 200) {
+                    console.log("Notification failed:", xhr.status);
+                }
+            }
+        };
+        xhr.open("POST", "http://127.0.0.1:8731/notify", true);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.send(JSON.stringify({ title: title, text: text }));
     }
 
     fullRepresentation: Item {
