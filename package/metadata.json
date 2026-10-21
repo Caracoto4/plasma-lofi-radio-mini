@@ -14,7 +14,7 @@
         "License": "MIT",
         "Name": "Lofi Radio Mini",
         "Name[ru]": "Lofi-радио (мини)",
-        "Version": "1.3.3",
+        "Version": "1.3.4",
         "Website": "https://lofiradio.ru"
     },
     "X-Plasma-API-Minimum-Version": "6.0",

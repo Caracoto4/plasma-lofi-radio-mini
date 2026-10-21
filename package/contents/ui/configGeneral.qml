@@ -12,6 +12,11 @@ Kirigami.FormLayout {
     property bool showError: false
     property string statusMessage: ""
 
+    // --- Проверка обновлений -----------------------------------------------
+    property string remoteVersion: ""
+    property bool checking: false
+    property bool hasUpdate: false
+
     // --- Основные настройки ---------------------------------------------
 
     QQC2.CheckBox {
@@ -39,11 +44,19 @@ Kirigami.FormLayout {
         text: page.currentVersion
     }
 
-    // Кнопка проверки обновления: запускает update.sh через helper-скрипт
+    // Кнопка проверки обновления
     QQC2.Button {
         Kirigami.FormData.label: i18n("Обновления:")
-        text: page.updating ? i18n("Установка...") : i18n("Проверить обновление")
-        enabled: !page.updating
+        text: page.checking ? i18n("Проверка...") : i18n("Проверить обновление")
+        enabled: !page.checking && !page.updating
+        onClicked: checkForUpdate()
+    }
+
+    // Кнопка установки обновления (появляется только при наличии новой версии)
+    QQC2.Button {
+        visible: page.hasUpdate && !page.updating
+        Kirigami.FormData.label: i18n("Обновление:")
+        text: i18n("Установить %1").arg(page.remoteVersion)
         onClicked: runUpdate()
     }
 
@@ -78,6 +91,81 @@ Kirigami.FormLayout {
     function setStatus(message, isError) {
         page.statusMessage = message;
         page.showError = isError === true;
+    }
+
+    function compareVersions(a, b) {
+        // Сравниваем версии "X.Y.Z" лексикографически по частям
+        var partsA = String(a).split(".").map(Number);
+        var partsB = String(b).split(".").map(Number);
+        var len = Math.max(partsA.length, partsB.length);
+        for (var i = 0; i < len; i++) {
+            var va = i < partsA.length ? partsA[i] : 0;
+            var vb = i < partsB.length ? partsB[i] : 0;
+            if (va > vb) return 1;
+            if (va < vb) return -1;
+        }
+        return 0;
+    }
+
+    function checkForUpdate() {
+        page.checking = true;
+        page.hasUpdate = false;
+        setStatus(i18n("Проверка обновлений..."), false);
+
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", "https://raw.githubusercontent.com/Caracoto4/plasma-lofi-radio-mini/refs/heads/main/package/metadata.json", true);
+        xhr.timeout = 10000;
+
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE)
+                return;
+
+            if (xhr.status === 200) {
+                try {
+                    var data = JSON.parse(xhr.responseText);
+                    page.remoteVersion = data.KPlugin ? String(data.KPlugin.Version) : "";
+                    page.checking = false;
+
+                    if (page.remoteVersion.length > 0) {
+                        var cmp = compareVersions(page.remoteVersion, page.currentVersion);
+                        if (cmp > 0) {
+                            page.hasUpdate = true;
+                            setStatus(i18n("Доступна версия %1 (у вас %2). Нажмите «Установить» для обновления.")
+                                      .arg(page.remoteVersion).arg(page.currentVersion), false);
+                        } else if (cmp === 0) {
+                            page.hasUpdate = false;
+                            setStatus(i18n("У вас последняя версия %1.").arg(page.currentVersion), false);
+                        } else {
+                            page.hasUpdate = false;
+                            setStatus(i18n("У вас версия новее, чем на GitHub (%1 > %2).").arg(page.currentVersion).arg(page.remoteVersion), false);
+                        }
+                    } else {
+                        setStatus(i18n("Не удалось получить версию из metadata.json"), true);
+                    }
+                } catch (e) {
+                    page.checking = false;
+                    setStatus(i18n("Ошибка разбора ответа: %1").arg(e.message), true);
+                }
+            } else if (xhr.status === 404) {
+                page.checking = false;
+                setStatus(i18n("Файл metadata.json не найден на GitHub. Проверьте ссылку."), true);
+            } else {
+                page.checking = false;
+                setStatus(i18n("Ошибка проверки (код %1).").arg(xhr.status), true);
+            }
+        };
+
+        xhr.onerror = function () {
+            page.checking = false;
+            setStatus(i18n("Не удалось подключиться к GitHub. Проверьте интернет."), true);
+        };
+
+        xhr.ontimeout = function () {
+            page.checking = false;
+            setStatus(i18n("Превышено время ожидания ответа от GitHub."), true);
+        };
+
+        xhr.send();
     }
 
     // Фактический порт helper-сервиса виджет запоминает из ответа
