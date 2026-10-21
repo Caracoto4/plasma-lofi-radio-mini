@@ -39,6 +39,15 @@ PlasmoidItem {
         }
     }
 
+    // Запоминаем фактический порт helper-сервиса в конфиг — окно настроек
+    // не имеет доступа к engine, а кнопке «Проверить обновление» нужен порт
+    Connections {
+        target: engine
+        function onHelperPortChanged() {
+            Plasmoid.configuration.writeEntry("helperPort", engine.helperPort);
+        }
+    }
+
     // Сохранение состояния play/pause + уведомление о смене трека
     Connections {
         target: engine
