@@ -197,6 +197,63 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 log("notify error: %s" % e)
                 self.send_error(500, str(e))
+        elif path == "/update":
+            log("update requested")
+            try:
+                import subprocess
+                import threading
+                
+                # Запускаем обновление в отдельном потоке чтобы не блокировать HTTP ответ
+                def run_update():
+                    try:
+                        # Удаляем старую директорию если есть
+                        subprocess.run(["rm", "-rf", "/tmp/plasma-lofi-radio-mini"], check=False)
+                        
+                        # Клонируем репозиторий
+                        result = subprocess.run(
+                            ["git", "clone", "https://github.com/Caracoto4/plasma-lofi-radio-mini.git", "/tmp/plasma-lofi-radio-mini"],
+                            check=True,
+                            capture_output=True,
+                            text=True
+                        )
+                        log("git clone successful")
+                        
+                        # Делаем скрипт исполняемым
+                        subprocess.run(
+                            ["chmod", "+x", "/tmp/plasma-lofi-radio-mini/install.sh"],
+                            check=True
+                        )
+                        
+                        # Запускаем install.sh
+                        result = subprocess.run(
+                            ["/tmp/plasma-lofi-radio-mini/install.sh"],
+                            check=True,
+                            capture_output=True,
+                            text=True,
+                            cwd="/tmp/plasma-lofi-radio-mini"
+                        )
+                        log("install.sh successful: %s" % result.stdout)
+                        
+                        # Перезапускаем plasma-plasmashell
+                        subprocess.run(
+                            ["systemctl", "--user", "restart", "plasma-plasmashell.service"],
+                            check=False
+                        )
+                        log("plasma-plasmashell restarted")
+                        
+                        # Очищаем временную директорию
+                        subprocess.run(["rm", "-rf", "/tmp/plasma-lofi-radio-mini"], check=False)
+                        
+                    except Exception as e:
+                        log("update error: %s" % e)
+                
+                # Запускаем в отдельном потоке
+                threading.Thread(target=run_update, daemon=True).start()
+                
+                self._send(b'{"status": "ok", "message": "update started"}', "application/json")
+            except Exception as e:
+                log("update error: %s" % e)
+                self.send_error(500, str(e))
         else:
             self.send_error(404, "not found")
 
