@@ -13,6 +13,16 @@ PlasmoidItem {
 
     property var engine: Components.StreamPlayer
 
+    // Таймер дебаунса для сохранения громкости — не писать на каждое
+    // микро-движение ползунка, а только когда пользователь перестал
+    // крутить. Финальный sync гарантируется в onDestruction.
+    Timer {
+        id: volumeSaveTimer
+        interval: 500
+        repeat: false
+        onTriggered: Plasmoid.configuration.sync()
+    }
+
     // Восстановление состояния при загрузке
     Component.onCompleted: {
         // Надёжный автозапуск средствами Plasma: сервис создаётся только
@@ -31,11 +41,20 @@ PlasmoidItem {
         }
     }
 
-    // Сохранение громкости
+    // Финальное сохранение при закрытии виджета — гарантирует, что
+    // все pending-записи (особенно volume) успеются записаться в файл
+    // до того, как Plasma отключит виджет.
+    Component.onDestruction: {
+        volumeSaveTimer.stop();
+        Plasmoid.configuration.sync();
+    }
+
+    // Сохранение громкости (с дебаунсом — не писать на каждое движение ползунка)
     Connections {
         target: engine
         function onVolumeUpdated() {
             Plasmoid.configuration.writeEntry("volume", engine.volume);
+            volumeSaveTimer.restart();
         }
     }
 
@@ -45,6 +64,7 @@ PlasmoidItem {
         target: engine
         function onHelperPortChanged() {
             Plasmoid.configuration.writeEntry("helperPort", engine.helperPort);
+            Plasmoid.configuration.sync();
         }
     }
 
@@ -53,6 +73,7 @@ PlasmoidItem {
         target: engine
         function onPlaybackStateChanged() {
             Plasmoid.configuration.writeEntry("playing", engine.playing);
+            Plasmoid.configuration.sync();
         }
         function onTrackChanged() {
             if (!Plasmoid.configuration.notifications)
