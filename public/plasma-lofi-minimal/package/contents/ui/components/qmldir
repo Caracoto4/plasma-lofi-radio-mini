@@ -1,4 +1,0 @@
-module org.minimal.lofiradio
-
-singleton StreamPlayer 1.0 StreamPlayer.qml
-PlayerCard 1.0 PlayerCard.qml

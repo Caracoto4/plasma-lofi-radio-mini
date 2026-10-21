@@ -17,7 +17,9 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import socket
+import subprocess
 import sys
 import threading
 import time
@@ -44,7 +46,10 @@ STATE = {
     "stream": "http://%s:%d%s" % (STREAM_HOST, STREAM_PORT, STREAM_PATH),
     "updated": 0,
     "connected": False,
+    "port": 0,  # подставляется при старте HTTP-сервера; виджет использует его для /notify и /update
 }
+
+UPDATE_LOCK = threading.Lock()
 
 
 def log(message: str) -> None:
@@ -153,14 +158,36 @@ def stream_worker() -> None:
 class Handler(BaseHTTPRequestHandler):
     server_version = "lofi-nowplaying/1.0"
 
-    def _send(self, body: bytes, content_type: str) -> None:
-        self.send_response(200)
+    def _cors_origin(self) -> str:
+        # Разрешаем запросы только от локальных клиентов (виджет/браузер на этой машине)
+        origin = self.headers.get("Origin", "")
+        if origin.startswith("http://127.0.0.1") or origin.startswith("http://localhost"):
+            return origin
+        return ""
+
+    def _send(self, body: bytes, content_type: str, status: int = 200) -> None:
+        self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
-        self.send_header("Access-Control-Allow-Origin", "*")
+        cors = self._cors_origin()
+        if cors:
+            self.send_header("Access-Control-Allow-Origin", cors)
         self.end_headers()
         self.wfile.write(body)
+
+    def _send_json(self, obj, status: int = 200) -> None:
+        body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
+        self._send(body, "application/json; charset=utf-8", status)
+
+    def _read_body(self, limit: int = 65536) -> bytes:
+        try:
+            length = int(self.headers.get("Content-Length", "0") or "0")
+        except ValueError:
+            length = 0
+        if length < 0 or length > limit:
+            raise ValueError("invalid content length")
+        return self.rfile.read(length)
 
     def do_GET(self) -> None:
         path = self.path.split("?", 1)[0]
@@ -174,81 +201,104 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         path = self.path.split("?", 1)[0]
         if path == "/notify":
-            content_length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(content_length)
-            try:
-                data = json.loads(body.decode("utf-8"))
-                title = data.get("title", "Lofi Radio")
-                text = data.get("text", "")
-                log("sending notification: %s - %s" % (title, text))
-                # Отправка уведомления через notify-send
-                import subprocess
-                result = subprocess.run(
-                    ["notify-send", "-a", "Lofi Radio", "-i", "audio-x-generic", title, text],
-                    check=False,
-                    capture_output=True,
-                    text=True
-                )
-                if result.returncode == 0:
-                    log("notification sent successfully")
-                else:
-                    log("notify-send failed: %s" % result.stderr)
-                self._send(b'{"status": "ok"}', "application/json")
-            except Exception as e:
-                log("notify error: %s" % e)
-                self.send_error(500, str(e))
+            self._handle_notify()
         elif path == "/update":
-            log("update requested")
+            self._handle_update()
+        else:
+            self.send_error(404, "not found")
+
+    def _handle_notify(self) -> None:
+        try:
+            body = self._read_body()
+            data = json.loads(body.decode("utf-8")) if body else {}
+            title = str(data.get("title", "Lofi Radio"))[:200] or "Lofi Radio"
+            text = str(data.get("text", ""))[:500]
+        except Exception as exc:
+            log("notify bad request: %s" % exc)
+            self._send_json({"status": "error", "message": "invalid request body"}, 400)
+            return
+
+        notify_send = shutil.which("notify-send")
+        if not notify_send:
+            log("notify-send not available, skipping notification")
+            self._send_json({"status": "error", "message": "notify-send not available"})
+            return
+
+        try:
+            # "-a"/"-i" задают приложение и иконку; "--" защищает от значений, начинающихся с "-"
+            result = subprocess.run(
+                [notify_send, "-a", "Lofi Radio", "-i", "audio-x-generic", "--", title, text],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if result.returncode == 0:
+                self._send_json({"status": "ok"})
+            else:
+                log("notify-send failed: %s" % (result.stderr or "").strip())
+                self._send_json({"status": "error", "message": "notify-send failed"})
+        except Exception as exc:
+            log("notify error: %s" % exc)
+            self._send_json({"status": "error", "message": "notify error"})
+
+    def _handle_update(self) -> None:
+        update_script = os.path.expanduser("~/.local/share/lofi-radio-mini/update.sh")
+        if not os.path.isfile(update_script):
+            log("update.sh not found at: %s" % update_script)
+            self._send_json({"status": "error", "message": "update.sh not found"})
+            return
+
+        # Не даём запустить обновление дважды одновременно
+        if not UPDATE_LOCK.acquire(blocking=False):
+            log("update already in progress")
+            self._send_json({"status": "error", "message": "обновление уже выполняется"})
+            return
+
+        try:
+            log("running update.sh...")
             try:
-                import subprocess
-                import os
-                
-                log("running update.sh...")
-                
-                # Запускаем update.sh синхронно
-                update_script = os.path.expanduser("~/.local/share/lofi-radio-mini/update.sh")
-                
-                # Проверяем что скрипт существует
-                if not os.path.exists(update_script):
-                    log("update.sh not found at: %s" % update_script)
-                    self._send(b'{"status": "error", "message": "update.sh not found"}', "application/json")
-                    return
-                
                 result = subprocess.run(
                     ["/bin/bash", update_script],
                     capture_output=True,
                     text=True,
-                    timeout=180
+                    timeout=180,
                 )
-                
-                log("update.sh exit code: %d" % result.returncode)
-                if result.stdout:
-                    log("update.sh stdout: %s" % result.stdout)
-                if result.stderr:
-                    log("update.sh stderr: %s" % result.stderr)
-                
-                if result.returncode == 0:
-                    log("update completed successfully")
-                    self._send(b'{"status": "ok", "message": "update completed"}', "application/json")
-                else:
-                    log("update failed with code %d" % result.returncode)
-                    self._send(b'{"status": "error", "message": "update failed"}', "application/json")
-                    
             except subprocess.TimeoutExpired:
                 log("update.sh timed out after 180 seconds")
-                self._send(b'{"status": "error", "message": "update timeout"}', "application/json")
-            except Exception as e:
-                log("update error: %s" % e)
-                import traceback
-                log(traceback.format_exc())
-                self._send(b'{"status": "error", "message": "update exception"}', "application/json")
-        else:
-            self.send_error(404, "not found")
+                self._send_json({"status": "error", "message": "update timeout"})
+                return
+            except Exception as exc:
+                log("update error: %s" % exc)
+                self._send_json({"status": "error", "message": "update exception"})
+                return
+
+            log("update.sh exit code: %d" % result.returncode)
+            if result.stdout.strip():
+                log("update.sh stdout: %s" % result.stdout.strip())
+            if result.stderr.strip():
+                log("update.sh stderr: %s" % result.stderr.strip())
+
+            if result.returncode == 0:
+                log("update completed successfully")
+                self._send_json({"status": "ok", "message": "update completed"})
+            else:
+                log("update failed with code %d" % result.returncode)
+                detail = (result.stderr or result.stdout or "").strip()[-300:]
+                message = "update failed (код %d)" % result.returncode
+                if detail:
+                    message += ": %s" % detail
+                self._send_json({"status": "error", "message": message})
+        finally:
+            UPDATE_LOCK.release()
 
     def do_OPTIONS(self) -> None:
         self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Headers", "*")
+        cors = self._cors_origin()
+        if cors:
+            self.send_header("Access-Control-Allow-Origin", cors)
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
     def log_message(self, fmt, *args):
@@ -261,6 +311,8 @@ def start_http_server() -> ThreadingHTTPServer:
         try:
             server = ThreadingHTTPServer((HTTP_HOST, port), Handler)
             server.daemon_threads = True
+            with STATE_LOCK:
+                STATE["port"] = port
             log("serving http://%s:%d/nowplaying.json" % (HTTP_HOST, port))
             return server
         except OSError as exc:
