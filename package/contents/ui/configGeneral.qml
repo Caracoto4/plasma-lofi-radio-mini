@@ -6,8 +6,8 @@ import org.kde.kirigami 2.4 as Kirigami
 Kirigami.FormLayout {
     id: page
 
-    property string currentVersion: "1.2.0"
-    property string currentCommitDate: "2026-01-22T00:00:00Z"
+    property string currentVersion: "1.3.0"
+    property string currentCommitDate: "2026-01-23T00:00:00Z"
     property string latestCommitDate: ""
     property string latestCommitMessage: ""
     property string latestCommitSha: ""
@@ -136,8 +136,22 @@ Kirigami.FormLayout {
     }
 
     function installUpdate() {
-        // Открываем konsole с командой для обновления
-        Qt.openUrlExternally("konsole");
-        page.statusMessage = i18n("Откройте терминал и выполните:\ncd ~/plasma-lofi-radio-mini && git pull && ./update.sh");
+        page.statusMessage = i18n("Установка обновления...");
+        page.updateAvailable = false;
+        
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "http://127.0.0.1:8731/update", true);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                if (xhr.status === 200) {
+                    page.statusMessage = i18n("Обновление установлено! Plasma перезапускается...");
+                } else {
+                    page.statusMessage = i18n("Ошибка установки обновления (код %1)").arg(xhr.status);
+                    console.log("Update failed:", xhr.status);
+                }
+            }
+        };
+        xhr.send(JSON.stringify({}));
     }
 }
