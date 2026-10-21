@@ -56,6 +56,7 @@ chmod +x install.sh
 
 - `~/.local/share/plasma/plasmoids/org.koda.lofiradio.mini` — виджет
 - `~/.local/share/lofi-radio-mini/lofi-nowplaying.py` — вспомогательный скрипт для названий треков
+- `~/.local/share/lofi-radio-mini/update.sh` — копия скрипта обновления (запускается кнопкой «Проверить обновление»)
 - `~/.config/systemd/user/lofi-nowplaying.service` — пользовательский сервис для скрипта
 
 После установки добавьте виджет: щёлкните правой кнопкой мыши по рабочему столу или панели → **Добавить виджеты…** → **Lofi Radio Mini**.
@@ -74,18 +75,22 @@ systemctl --user restart plasma-plasmashell.service
 2. Нажмите **Проверить обновление**
 3. Будет запущен `update.sh`, который скачает последнюю версию, установит её и перезапустит Plasma
 
-Процесс обновления:
-- Клонирует репозиторий в `/tmp`
-- Запускает `install.sh`
-- Перезапускает Plasma
-- Очищает временные файлы
+Процесс обновления (фактическое поведение `update.sh`):
+- Клонирует репозиторий из GitHub в текущую директорию (если папка клона уже существует, клон завершится ошибкой — удалите её)
+- Запускает `install.sh` из свежего клона
+- Перезапускает Plasma (`systemctl --user restart plasma-plasmashell.service`)
+
+Важно: helper-сервис сам запускает копию `~/.local/share/lofi-radio-mini/update.sh`, поэтому обновление не зависит от наличия копии репозитория в домашней папке. После нажатия кнопки Plasma перезапустится — несохранённое состояние рабочего стола может быть потеряно.
 
 **Ручное обновление:**
 
 ```bash
-cd ~/plasma-lofi-radio-mini
+cd plasma-lofi-radio-mini   # ваша копия репозитория
 git pull
-./update.sh
+chmod +x install.sh
+./install.sh                # ставит виджет, helper и update.sh, перезапускает сервис
+                            # (сам update.sh клонирует свежую версию из GitHub и запускает install.sh)
+kquitapp6 plasmashell || true; kstart_dbus-wrapper plasmashell &   # либо: systemctl --user restart plasma-plasmashell.service
 ```
 
 ## Удаление
@@ -110,11 +115,17 @@ GET http://127.0.0.1:8731/nowplaying.json
   "station": "LoFi Radio",
   "stream": "http://live.lofiradio.ru:8000/lofi_mp3_128",
   "updated": 1792329532,
-  "connected": true
+  "connected": true,
+  "port": 8731
 }
 ```
 
-Скрипт слушает только `127.0.0.1`, пытается использовать порты `8731`, `8732`, `8733` по порядку и отвечает `ok` на `GET /health`. При обрыве соединения переподключается с экспоненциальной задержкой.
+Скрипт слушает только `127.0.0.1`, пытается использовать порты `8731`, `8732`, `8733` по порядку и отвечает `ok` на `GET /health`. Фактический порт публикуется в поле `port`, а виджет запоминает его — если `8731` занят другим процессом, уведомления и кнопка «Проверить обновление» продолжат работать на резервном порту. При обрыве соединения скрипт переподключается с экспоненциальной задержкой.
+
+Дополнительные эндпоинты (доступны только локально, CORS разрешён лишь для localhost-источников):
+
+- `POST /notify` — показывает системное уведомление о смене трека от имени виджета;
+- `POST /update` — запускает `~/.local/share/lofi-radio-mini/update.sh` (обновление одним нажатием из настроек виджета); параллельный запуск блокируется.
 
 Проверка статуса и логов:
 
@@ -123,7 +134,7 @@ systemctl --user status lofi-nowplaying
 journalctl --user -u lofi-nowplaying -f
 ```
 
-Виджет опрашивает скрипт каждые 2 секунды.
+Виджет опрашивает скрипт каждые 5 секунд, когда helper доступен (и каждые 2 секунды, пока тот не ответит — чтобы подхватить резервный порт).
 
 > **Важно:** аудио не проходит через вспомогательный скрипт. Если скрипт не работает, музыка всё равно будет играть, но без отображения названий треков.
 
@@ -135,19 +146,20 @@ package/                          Пакет Plasma (устанавливает�
 ├── contents/
 │   ├── config/
 │   │   ├── config.qml            Определяет вкладки настроек (ConfigModel)
-│   │   └── main.xml              Конфигурация виджета (громкость, состояние)
+│   │   └── main.xml              Конфигурация виджета (громкость, autoplay, уведомления)
 │   └── ui/
 │       ├── main.qml              Апплет: полное представление + зеркало для панели
-│       ├── configGeneral.qml     Содержимое вкладки "General" (кнопка запуска update.sh)
+│       ├── configGeneral.qml     Вкладка «General»: автозапуск, уведомления, кнопка «Проверить обновление»
 │       └── components/
 │           ├── qmldir            Объявляет модуль org.koda.lofiradio.mini и синглтон StreamPlayer
 │           ├── StreamPlayer.qml  QML-синглтон: MediaPlayer, поток, опрос названий
 │           └── PlayerCard.qml    Минималистичная визуальная карточка (не зависит от Plasma)
 
 helper/
-├── lofi-nowplaying.py            Метаданные Icecast -> JSON на localhost + уведомления
+├── lofi-nowplaying.py            Метаданные Icecast -> JSON на localhost + /notify, /update
 └── lofi-nowplaying.service       Юнит systemd для пользователя
 
+index.html, src/, package.json, vite.config.js  — лендинг (React + Vite, к установке виджета не относится)
 install.sh, update.sh, uninstall.sh
 ```
 
