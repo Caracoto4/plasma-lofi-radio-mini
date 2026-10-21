@@ -12,6 +12,8 @@ Restart=always
 RestartSec=5
 NoNewPrivileges=yes
 Nice=10
+# Для доступа к notify-send через DBus
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%U/bus
 
 [Install]
 WantedBy=default.target
