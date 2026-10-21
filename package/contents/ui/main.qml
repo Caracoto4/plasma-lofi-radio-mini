@@ -19,10 +19,6 @@ PlasmoidItem {
                                     || plasmoid.location === PlasmaCore.Types.BottomEdge
 
     Plasmoid.status: engine.playing ? PlasmaCore.Types.ActiveStatus : PlasmaCore.Types.PassiveStatus
-    Plasmoid.toolTipMainText: "Lofi Radio Mini"
-    Plasmoid.toolTipSubText: engine.playing
-                             ? (engine.title.length > 0 ? "%1 — %2".arg(engine.artist).arg(engine.title) : "Воспроизведение")
-                             : "Остановлено"
 
     fullRepresentation: Item {
         implicitWidth: 260
