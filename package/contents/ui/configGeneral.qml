@@ -93,14 +93,23 @@ Kirigami.FormLayout {
         page.showError = isError === true;
     }
 
+    function normalizeVersion(v) {
+        var s = String(v).trim();
+        if (s.indexOf("v") === 0)
+            s = s.substring(1);
+        return s;
+    }
+
     function compareVersions(a, b) {
-        // Сравниваем версии "X.Y.Z" лексикографически по частям
-        var partsA = String(a).split(".").map(Number);
-        var partsB = String(b).split(".").map(Number);
+        // Сравниваем версии "X.Y.Z" по частям
+        var partsA = normalizeVersion(a).split(".");
+        var partsB = normalizeVersion(b).split(".");
         var len = Math.max(partsA.length, partsB.length);
         for (var i = 0; i < len; i++) {
-            var va = i < partsA.length ? partsA[i] : 0;
-            var vb = i < partsB.length ? partsB[i] : 0;
+            var va = i < partsA.length ? Number(partsA[i]) : 0;
+            var vb = i < partsB.length ? Number(partsB[i]) : 0;
+            if (isNaN(va)) va = 0;
+            if (isNaN(vb)) vb = 0;
             if (va > vb) return 1;
             if (va < vb) return -1;
         }
@@ -113,7 +122,11 @@ Kirigami.FormLayout {
         setStatus(i18n("Проверка обновлений..."), false);
 
         var xhr = new XMLHttpRequest();
-        xhr.open("GET", "https://raw.githubusercontent.com/Caracoto4/plasma-lofi-radio-mini/refs/heads/main/package/metadata.json", true);
+        // Параметр ?t= обходит кэш CDN GitHub — иначе после пуша ещё
+        // несколько минут может отдаваться старый metadata.json
+        var url = "https://raw.githubusercontent.com/Caracoto4/plasma-lofi-radio-mini/refs/heads/main/package/metadata.json"
+                  + "?t=" + Date.now();
+        xhr.open("GET", url, true);
         xhr.timeout = 10000;
 
         xhr.onreadystatechange = function () {
@@ -123,7 +136,7 @@ Kirigami.FormLayout {
             if (xhr.status === 200) {
                 try {
                     var data = JSON.parse(xhr.responseText);
-                    page.remoteVersion = data.KPlugin ? String(data.KPlugin.Version) : "";
+                    page.remoteVersion = data.KPlugin ? normalizeVersion(data.KPlugin.Version) : "";
                     page.checking = false;
 
                     if (page.remoteVersion.length > 0) {
@@ -137,7 +150,10 @@ Kirigami.FormLayout {
                             setStatus(i18n("У вас последняя версия %1.").arg(page.currentVersion), false);
                         } else {
                             page.hasUpdate = false;
-                            setStatus(i18n("У вас версия новее, чем на GitHub (%1 > %2).").arg(page.currentVersion).arg(page.remoteVersion), false);
+                            setStatus(i18n("У вас версия %1, на GitHub — %2.\n"
+                                           + "Скорее всего GitHub ещё отдаёт кэшированный metadata.json, "
+                                           + "попробуйте проверить через пару минут.")
+                                      .arg(page.currentVersion).arg(page.remoteVersion), false);
                         }
                     } else {
                         setStatus(i18n("Не удалось получить версию из metadata.json"), true);

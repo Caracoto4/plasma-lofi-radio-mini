@@ -1,0 +1,5 @@
+# Все shell-скрипты — всегда LF
+*.sh text eol=lf
+
+# QML-файлы — тоже LF
+*.qml text eol=lf
