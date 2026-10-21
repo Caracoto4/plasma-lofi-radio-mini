@@ -26,8 +26,8 @@ Item {
     property real volume: 0.75
 
     signal trackChanged()
-    signal volumeChanged()
-    signal playingChanged()
+    signal volumeUpdated()
+    signal playbackStateChanged()
 
     property int reconnectCount: 0
 
@@ -143,7 +143,7 @@ Item {
 
     function setVolume(v) {
         engine.volume = Math.max(0, Math.min(1, v));
-        volumeChanged();
+        volumeUpdated();
     }
 
     Connections {
@@ -191,7 +191,7 @@ Item {
     onPlayingChanged: {
         if (playing)
             readNowPlaying();
-        playingChanged();
+        playbackStateChanged();
     }
 
     Component.onCompleted: {
