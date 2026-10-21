@@ -1,0 +1,335 @@
+import QtQuick
+import QtQuick.Layouts
+import org.kde.kirigami as Kirigami
+
+Item {
+    id: card
+
+    property var engine: null
+
+    property bool compact: false
+    property bool previewActive: false
+    property bool previewPlaying: true
+    property string previewTitle: ""
+    property string previewArtist: ""
+
+    property bool drawBackground: true
+
+    readonly property var stream: engine !== null
+                                  ? engine
+                                  : ({
+                                        playing: false,
+                                        buffering: false,
+                                        title: "",
+                                        artist: "",
+                                        stationName: "",
+                                        volume: 0.75,
+                                        stations: [{name: "lofi hip hop"}, {name: "lofi chill"}],
+                                        stationIndex: 0,
+                                        toggle: function(){},
+                                        nextStation: function(){},
+                                        previousStation: function(){},
+                                        setVolume: function(){}
+                                    })
+
+    readonly property bool playing: previewActive ? previewPlaying : stream.playing
+    readonly property bool buffering: previewActive ? false : stream.buffering
+    readonly property string trackTitle: previewActive ? previewTitle : stream.title
+    readonly property string trackArtist: previewActive ? previewArtist : stream.artist
+    readonly property string currentStation: stream.stations ? stream.stations[stream.stationIndex].name : ""
+    property real volume: stream.volume
+
+    implicitWidth: 260
+    implicitHeight: compact ? 34 : 200
+
+    Rectangle {
+        id: backdrop
+        anchors.fill: parent
+        visible: card.drawBackground
+        radius: Kirigami.Units.cornerRadius
+        color: Kirigami.Theme.backgroundColor
+        border.width: 1
+        border.color: Qt.rgba(Kirigami.Theme.textColor.r,
+                               Kirigami.Theme.textColor.g,
+                               Kirigami.Theme.textColor.b, 0.1)
+    }
+
+    ColumnLayout {
+        anchors.fill: parent
+        anchors.margins: card.compact ? 0 : Kirigami.Units.largeSpacing
+        spacing: Kirigami.Units.smallSpacing
+
+        Header {
+            Layout.fillWidth: true
+            visible: !card.compact
+        }
+
+        TrackInfo {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            visible: !card.compact
+        }
+
+        Controls {
+            Layout.fillWidth: true
+            visible: !card.compact
+        }
+
+        VolumeBar {
+            Layout.fillWidth: true
+            visible: !card.compact
+        }
+
+        CompactView {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            visible: card.compact
+        }
+    }
+
+    component Header: RowLayout {
+        spacing: Kirigami.Units.smallSpacing
+
+        Rectangle {
+            width: 6
+            height: 6
+            radius: 3
+            color: card.playing ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.disabledTextColor
+
+            SequentialAnimation on opacity {
+                running: card.playing
+                loops: Animation.Infinite
+                NumberAnimation { to: 0.3; duration: 1000; easing.type: Easing.InOutQuad }
+                NumberAnimation { to: 1.0; duration: 1000; easing.type: Easing.InOutQuad }
+            }
+        }
+
+        Label {
+            text: card.buffering ? qsTr("загрузка…") : qsTr("lofi radio")
+            font.pixelSize: 10
+            font.letterSpacing: 1.0
+            opacity: 0.6
+            Layout.fillWidth: true
+        }
+
+        Label {
+            text: card.currentStation
+            font.pixelSize: 10
+            opacity: 0.4
+        }
+    }
+
+    component TrackInfo: ColumnLayout {
+        spacing: 2
+
+        Item {
+            Layout.fillWidth: true
+            Layout.preferredHeight: titleText.implicitHeight + 2
+            clip: true
+
+            Label {
+                id: titleText
+                text: card.trackTitle.length > 0 ? card.trackTitle : qsTr("Подключение…")
+                font.pixelSize: 13
+                font.weight: Font.Medium
+                elide: Text.ElideNone
+                wrapMode: Text.NoWrap
+
+                readonly property bool overflow: implicitWidth > parent.width + 2
+
+                NumberAnimation on x {
+                    running: titleText.overflow
+                    loops: Animation.Infinite
+                    from: 0
+                    to: -(titleText.implicitWidth - titleText.parent.width + 16)
+                    duration: Math.max(4000, titleText.implicitWidth * 22)
+                    easing.type: Easing.InOutSine
+                    onRunningChanged: if (!running) titleText.x = 0
+                }
+            }
+        }
+
+        Label {
+            text: card.trackArtist.length > 0 ? card.trackArtist : "lofiradio.ru"
+            font.pixelSize: 11
+            opacity: 0.5
+            elide: Text.ElideRight
+            Layout.fillWidth: true
+        }
+    }
+
+    component Controls: RowLayout {
+        spacing: Kirigami.Units.largeSpacing
+
+        Item { Layout.fillWidth: true }
+
+        ToolButton {
+            icon.name: "media-skip-backward"
+            icon.width: 16
+            icon.height: 16
+            implicitWidth: 32
+            implicitHeight: 32
+            onClicked: stream.previousStation()
+            display: AbstractButton.IconOnly
+        }
+
+        Rectangle {
+            implicitWidth: 40
+            implicitHeight: 40
+            radius: 20
+            color: playArea.containsMouse
+                   ? Qt.rgba(Kirigami.Theme.highlightColor.r,
+                             Kirigami.Theme.highlightColor.g,
+                             Kirigami.Theme.highlightColor.b, 0.2)
+                   : Qt.rgba(Kirigami.Theme.highlightColor.r,
+                             Kirigami.Theme.highlightColor.g,
+                             Kirigami.Theme.highlightColor.b, 0.1)
+            scale: playArea.pressed ? 0.92 : 1.0
+            Behavior on scale { NumberAnimation { duration: 100 } }
+
+            Kirigami.Icon {
+                anchors.centerIn: parent
+                width: 18
+                height: 18
+                source: card.playing ? "media-playback-pause" : "media-playback-start"
+                color: Kirigami.Theme.textColor
+            }
+
+            MouseArea {
+                id: playArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                    if (card.previewActive)
+                        card.previewPlaying = !card.previewPlaying;
+                    else
+                        stream.toggle();
+                }
+            }
+        }
+
+        ToolButton {
+            icon.name: "media-skip-forward"
+            icon.width: 16
+            icon.height: 16
+            implicitWidth: 32
+            implicitHeight: 32
+            onClicked: stream.nextStation()
+            display: AbstractButton.IconOnly
+        }
+
+        Item { Layout.fillWidth: true }
+    }
+
+    component VolumeBar: RowLayout {
+        spacing: Kirigami.Units.smallSpacing
+
+        Kirigami.Icon {
+            width: 14
+            height: 14
+            source: card.volume <= 0.01
+                    ? "audio-volume-muted"
+                    : (card.volume < 0.5 ? "audio-volume-low" : "audio-volume-high")
+            color: Kirigami.Theme.textColor
+            opacity: 0.5
+        }
+
+        Slider {
+            Layout.fillWidth: true
+            from: 0
+            to: 1
+            value: card.volume
+            onMoved: stream.setVolume(value)
+        }
+    }
+
+    component CompactView: Item {
+        Kirigami.Icon {
+            anchors.centerIn: parent
+            width: 20
+            height: 20
+            source: card.playing ? "media-playback-pause" : "media-playback-start"
+            color: Kirigami.Theme.textColor
+        }
+    }
+
+    component Label: Text {
+        color: Kirigami.Theme.textColor
+    }
+
+    component ToolButton: Rectangle {
+        signal clicked()
+        property alias icon: iconItem
+
+        radius: width / 2
+        color: tbMouse.containsMouse
+               ? Qt.rgba(Kirigami.Theme.textColor.r,
+                         Kirigami.Theme.textColor.g,
+                         Kirigami.Theme.textColor.b, 0.1)
+               : "transparent"
+
+        Kirigami.Icon {
+            id: iconItem
+            anchors.centerIn: parent
+            width: 16
+            height: 16
+            color: Kirigami.Theme.textColor
+            opacity: 0.7
+        }
+
+        MouseArea {
+            id: tbMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: parent.clicked()
+        }
+    }
+
+    component Slider: Item {
+        property real from: 0
+        property real to: 1
+        property real value: 0.75
+        signal moved()
+
+        implicitHeight: 20
+
+        Rectangle {
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width
+            height: 3
+            radius: 1.5
+            color: Qt.rgba(Kirigami.Theme.textColor.r,
+                           Kirigami.Theme.textColor.g,
+                           Kirigami.Theme.textColor.b, 0.15)
+
+            Rectangle {
+                height: parent.height
+                radius: 1.5
+                width: parent.width * ((slider.value - slider.from) / (slider.to - slider.from))
+                color: Kirigami.Theme.highlightColor
+            }
+        }
+
+        MouseArea {
+            id: slider
+            property real value: parent.value
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+
+            onPressed: (mouse) => {
+                var ratio = mouse.x / width;
+                parent.value = from + ratio * (to - from);
+                parent.moved();
+            }
+            onPositionChanged: (mouse) => {
+                if (pressed) {
+                    var ratio = mouse.x / width;
+                    parent.value = from + ratio * (to - from);
+                    parent.moved();
+                }
+            }
+        }
+    }
+}
