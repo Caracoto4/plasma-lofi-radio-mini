@@ -14,15 +14,37 @@ PlasmoidItem {
 
     readonly property Components.StreamPlayer engine: Components.StreamPlayer
 
+    // Действие для открытия настроек
+    Plasmoid.contextualActions: [
+        PlasmaCore.Action {
+            text: qsTr("Настройки Lofi Radio Mini")
+            icon.name: "configure"
+            onTriggered: {
+                var component = Qt.createComponent("config.qml");
+                if (component.status === Component.Ready) {
+                    var dialog = component.createObject(root);
+                    dialog.show();
+                }
+            }
+        }
+    ]
+
     // Восстановление состояния при загрузке
     Component.onCompleted: {
-        var savedVol = Plasmoid.configuration.readEntry("volume", -1);
-        if (savedVol >= 0) {
+        console.log("Lofi Radio Mini: Loading saved state...");
+        
+        // Восстановить громкость
+        var savedVol = Plasmoid.configuration.readEntry("volume", 0.75);
+        if (savedVol >= 0 && savedVol <= 1) {
             engine.volume = savedVol;
+            console.log("Lofi Radio Mini: Restored volume:", savedVol);
         }
+        
+        // Восстановить состояние воспроизведения
         var wasPlaying = Plasmoid.configuration.readEntry("playing", false);
         if (wasPlaying) {
             engine.play();
+            console.log("Lofi Radio Mini: Restored playing state");
         }
     }
 
@@ -30,6 +52,7 @@ PlasmoidItem {
     Connections {
         target: engine
         function onVolumeUpdated() {
+            console.log("Lofi Radio Mini: Saving volume:", engine.volume);
             Plasmoid.configuration.writeEntry("volume", engine.volume);
         }
     }
@@ -38,9 +61,11 @@ PlasmoidItem {
     Connections {
         target: engine
         function onPlaybackStateChanged() {
+            console.log("Lofi Radio Mini: Saving playing state:", engine.playing);
             Plasmoid.configuration.writeEntry("playing", engine.playing);
         }
         function onTrackChanged() {
+            console.log("Lofi Radio Mini: Track changed -", engine.artist, "-", engine.title);
             if (engine.title.length > 0 || engine.artist.length > 0) {
                 sendNotification(
                     engine.artist.length > 0 ? engine.artist : "Lofi Radio",
@@ -51,11 +76,14 @@ PlasmoidItem {
     }
 
     function sendNotification(title, text) {
+        console.log("Lofi Radio Mini: Sending notification:", title, "-", text);
         var xhr = new XMLHttpRequest();
         xhr.onreadystatechange = function() {
             if (xhr.readyState === XMLHttpRequest.DONE) {
-                if (xhr.status !== 200) {
-                    console.log("Notification failed:", xhr.status);
+                if (xhr.status === 200) {
+                    console.log("Lofi Radio Mini: Notification sent successfully");
+                } else {
+                    console.log("Lofi Radio Mini: Notification failed:", xhr.status);
                 }
             }
         };

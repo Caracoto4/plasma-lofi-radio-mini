@@ -180,13 +180,19 @@ class Handler(BaseHTTPRequestHandler):
                 data = json.loads(body.decode("utf-8"))
                 title = data.get("title", "Lofi Radio")
                 text = data.get("text", "")
+                log("sending notification: %s - %s" % (title, text))
                 # Отправка уведомления через notify-send
                 import subprocess
-                subprocess.run(
+                result = subprocess.run(
                     ["notify-send", "-a", "Lofi Radio", "-i", "audio-x-generic", title, text],
                     check=False,
-                    capture_output=True
+                    capture_output=True,
+                    text=True
                 )
+                if result.returncode == 0:
+                    log("notification sent successfully")
+                else:
+                    log("notify-send failed: %s" % result.stderr)
                 self._send(b'{"status": "ok"}', "application/json")
             except Exception as e:
                 log("notify error: %s" % e)
