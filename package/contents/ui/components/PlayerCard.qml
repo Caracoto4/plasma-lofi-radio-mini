@@ -46,7 +46,7 @@ Item {
     Rectangle {
         id: backdrop
         anchors.fill: parent
-        visible: card.drawBackground
+        visible: false
         radius: Kirigami.Units.cornerRadius
         color: Kirigami.Theme.backgroundColor
         border.width: 1
