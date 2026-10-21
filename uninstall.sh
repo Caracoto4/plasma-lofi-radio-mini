@@ -23,7 +23,7 @@ fi
 info "Удаляю systemd-юнит"
 rm -f "$UNIT_DIR/$UNIT_NAME"
 
-info "Удаляю helper"
+info "Удаляю helper и update.sh"
 rm -rf "$HELPER_DIR"
 
 if command -v kpackagetool6 >/dev/null 2>&1; then
