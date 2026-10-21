@@ -38,7 +38,7 @@ Item {
     // Порт запущенного helper-сервиса (узнаём из ответа /nowplaying.json).
     // Нужен для /notify и /update: если 8731 занят и helper сел на 8732/8733,
     // виджет всё равно отправит запросы на правильный порт.
-    property int helperPort: 0 NOTIFY helperPortChanged
+    property int helperPort: 0
 
     function helperUrl(endpoint) {
         return "http://127.0.0.1:" + (helperPort > 0 ? helperPort : nowPlayingPorts[0]) + endpoint;
