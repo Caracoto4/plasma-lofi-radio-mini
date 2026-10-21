@@ -29,7 +29,7 @@ PlasmoidItem {
     // Сохранение громкости
     Connections {
         target: engine
-        function onVolumeChanged() {
+        function onVolumeUpdated() {
             Plasmoid.configuration.writeEntry("volume", engine.volume);
         }
     }
@@ -37,7 +37,7 @@ PlasmoidItem {
     // Сохранение состояния play/pause + уведомление о смене трека
     Connections {
         target: engine
-        function onPlayingChanged() {
+        function onPlaybackStateChanged() {
             Plasmoid.configuration.writeEntry("playing", engine.playing);
         }
         function onTrackChanged() {
