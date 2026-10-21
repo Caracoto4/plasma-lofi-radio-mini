@@ -252,7 +252,7 @@ class Handler(BaseHTTPRequestHandler):
         # Не даём запустить обновление дважды одновременно
         if not UPDATE_LOCK.acquire(blocking=False):
             log("update already in progress")
-            self._send_json({"status": "error", "message": "обновление уже выполняется"})
+            self._send_json({"status": "error", "message": "обновление уже выполняется"}, 409)
             return
 
         try:
