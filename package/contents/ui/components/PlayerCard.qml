@@ -165,13 +165,16 @@ Item {
         Item { Layout.fillWidth: true }
 
         Controls.ToolButton {
-            icon.name: "media-skip-backward"
-            icon.width: 16
-            icon.height: 16
             implicitWidth: 32
             implicitHeight: 32
             display: Controls.AbstractButton.IconOnly
             onClicked: stream.previousStation()
+            Kirigami.Icon {
+                anchors.centerIn: parent
+                width: 16
+                height: 16
+                source: "media-skip-backward"
+            }
             Controls.ToolTip.text: qsTr("Предыдущая станция")
             Controls.ToolTip.visible: hovered
         }
@@ -190,9 +193,12 @@ Item {
                                  Kirigami.Theme.highlightColor.g,
                                  Kirigami.Theme.highlightColor.b, 0.12)
             }
-            icon.name: card.playing ? "media-playback-pause" : "media-playback-start"
-            icon.width: 18
-            icon.height: 18
+            Kirigami.Icon {
+                anchors.centerIn: parent
+                width: 18
+                height: 18
+                source: card.playing ? "media-playback-pause" : "media-playback-start"
+            }
             scale: pressed ? 0.92 : 1.0
             Behavior on scale { NumberAnimation { duration: 100 } }
             onClicked: {
@@ -206,13 +212,16 @@ Item {
         }
 
         Controls.ToolButton {
-            icon.name: "media-skip-forward"
-            icon.width: 16
-            icon.height: 16
             implicitWidth: 32
             implicitHeight: 32
             display: Controls.AbstractButton.IconOnly
             onClicked: stream.nextStation()
+            Kirigami.Icon {
+                anchors.centerIn: parent
+                width: 16
+                height: 16
+                source: "media-skip-forward"
+            }
             Controls.ToolTip.text: qsTr("Следующая станция")
             Controls.ToolTip.visible: hovered
         }
