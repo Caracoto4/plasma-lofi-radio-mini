@@ -3,7 +3,6 @@ import QtQuick.Layouts
 import org.kde.plasma.plasmoid
 import org.kde.plasma.core as PlasmaCore
 import org.kde.kirigami as Kirigami
-import org.kde.plasma.components as PlasmaComponents
 
 import "components" as Components
 
@@ -13,21 +12,6 @@ PlasmoidItem {
     preferredRepresentation: fullRepresentation
 
     readonly property Components.StreamPlayer engine: Components.StreamPlayer
-
-    // Действие для открытия настроек
-    Plasmoid.contextualActions: [
-        PlasmaCore.Action {
-            text: qsTr("Настройки Lofi Radio Mini")
-            icon.name: "configure"
-            onTriggered: {
-                var component = Qt.createComponent("config.qml");
-                if (component.status === Component.Ready) {
-                    var dialog = component.createObject(root);
-                    dialog.show();
-                }
-            }
-        }
-    ]
 
     // Восстановление состояния при загрузке
     Component.onCompleted: {
