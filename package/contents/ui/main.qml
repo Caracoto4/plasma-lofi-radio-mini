@@ -15,20 +15,19 @@ PlasmoidItem {
 
     // Восстановление состояния при загрузке
     Component.onCompleted: {
-        console.log("Lofi Radio Mini: Loading saved state...");
-        
+        // Надёжный автозапуск средствами Plasma: сервис создаётся только
+        // когда пользователь включил опцию в настройках
+        Plasmoid.autoStartEnabled = Plasmoid.configuration.autoplay;
+
         // Восстановить громкость
-        var savedVol = Plasmoid.configuration.readEntry("volume", 0.75);
+        var savedVol = Plasmoid.configuration.volume;
         if (savedVol >= 0 && savedVol <= 1) {
             engine.volume = savedVol;
-            console.log("Lofi Radio Mini: Restored volume:", savedVol);
         }
-        
-        // Восстановить состояние воспроизведения
-        var wasPlaying = Plasmoid.configuration.readEntry("playing", false);
-        if (wasPlaying) {
+
+        // Воспроизводить, если автозапуск включён в настройках
+        if (Plasmoid.configuration.autoplay) {
             engine.play();
-            console.log("Lofi Radio Mini: Restored playing state");
         }
     }
 
@@ -36,7 +35,6 @@ PlasmoidItem {
     Connections {
         target: engine
         function onVolumeUpdated() {
-            console.log("Lofi Radio Mini: Saving volume:", engine.volume);
             Plasmoid.configuration.writeEntry("volume", engine.volume);
         }
     }
@@ -45,33 +43,23 @@ PlasmoidItem {
     Connections {
         target: engine
         function onPlaybackStateChanged() {
-            console.log("Lofi Radio Mini: Saving playing state:", engine.playing);
             Plasmoid.configuration.writeEntry("playing", engine.playing);
         }
         function onTrackChanged() {
-            console.log("Lofi Radio Mini: Track changed -", engine.artist, "-", engine.title);
+            if (!Plasmoid.configuration.notifications)
+                return;
             if (engine.title.length > 0 || engine.artist.length > 0) {
                 sendNotification(
                     engine.artist.length > 0 ? engine.artist : "Lofi Radio",
-                    engine.title.length > 0 ? engine.title : "Новый трек"
+                    engine.title.length > 0 ? engine.title : qsTr("Новый трек")
                 );
             }
         }
     }
 
     function sendNotification(title, text) {
-        console.log("Lofi Radio Mini: Sending notification:", title, "-", text);
         var xhr = new XMLHttpRequest();
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState === XMLHttpRequest.DONE) {
-                if (xhr.status === 200) {
-                    console.log("Lofi Radio Mini: Notification sent successfully");
-                } else {
-                    console.log("Lofi Radio Mini: Notification failed:", xhr.status);
-                }
-            }
-        };
-        xhr.open("POST", "http://127.0.0.1:8731/notify", true);
+        xhr.open("POST", engine.helperUrl("/notify"), true);
         xhr.setRequestHeader("Content-Type", "application/json");
         xhr.send(JSON.stringify({ title: title, text: text }));
     }

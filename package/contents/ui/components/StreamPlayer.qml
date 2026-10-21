@@ -35,6 +35,15 @@ Item {
     property int nowPlayingPortIndex: 0
     property string lastRaw: ""
 
+    // Порт запущенного helper-сервиса (узнаём из ответа /nowplaying.json).
+    // Нужен для /notify и /update: если 8731 занят и helper сел на 8732/8733,
+    // виджет всё равно отправит запросы на правильный порт.
+    property int helperPort: 0
+
+    function helperUrl(endpoint) {
+        return "http://127.0.0.1:" + (helperPort > 0 ? helperPort : nowPlayingPorts[0]) + endpoint;
+    }
+
     function applyTrack(newArtist, newTitle, raw) {
         var a = String(newArtist === undefined || newArtist === null ? "" : newArtist).trim();
         var t = String(newTitle === undefined || newTitle === null ? "" : newTitle).trim();
@@ -81,6 +90,10 @@ Item {
             var data = xhr.response;
             if (data === null || data === undefined)
                 return;
+            // helper отдаёт номер порта, на котором он реально слушает,
+            // запоминаем его для /notify и /update
+            if (data.port !== undefined && Number(data.port) > 0)
+                helperPort = Number(data.port);
             if (data.station)
                 stationName = String(data.station);
             applyTrack(data.artist, data.title, data.raw);
@@ -105,7 +118,7 @@ Item {
 
     Timer {
         id: nowPlayingTimer
-        interval: 2000
+        interval: engine.nowPlayingState === 0 ? 5000 : 2000
         repeat: true
         running: true
         onTriggered: engine.readNowPlaying()
@@ -142,7 +155,10 @@ Item {
     }
 
     function setVolume(v) {
-        engine.volume = Math.max(0, Math.min(1, v));
+        var nv = Math.max(0, Math.min(1, v));
+        if (nv === engine.volume)
+            return;
+        engine.volume = nv;
         volumeUpdated();
     }
 
