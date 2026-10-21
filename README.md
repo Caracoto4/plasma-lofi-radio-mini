@@ -1,2 +1,164 @@
-# plasma-lofi-radio-mini
-Виджет Plasma Lofi Radio
+# Lofi Radio Mini — виджет для KDE Plasma 6
+
+Минималистичный виджет lofi-радио для рабочего стола KDE Plasma 6.  
+Клон [plasma-lofi-radio](https://github.com/Caracoto4/plasma-lofi-radio) с чистым дизайном в стиле системных виджетов Plasma.
+
+## Возможности
+
+- **Прямая трансляция.** Воспроизведение потока с `live.lofiradio.ru` через QtMultimedia. Две станции: _lofi hip hop_ (128 kbps) и _lofi chill_ (96 kbps).
+- **Живые названия треков.** Icecast передаёт название песни в формате `StreamTitle='Artist - Title'`, который бэкенд FFmpeg в Qt не предоставляет. Небольшой вспомогательный скрипт на Python (только стандартная библиотека) читает метаданные из сокета и отдаёт их в формате JSON на `127.0.0.1`, чтобы виджет мог показывать текущий трек.
+- **Минималистичный дизайн.** Чистый интерфейс без лишних элементов — только название трека, кнопки управления и громкость. Используются системные цвета Kirigami.
+- **Бегущая строка.** Название трека прокручивается, если не помещается в отведённое место.
+- **Автопереподключение.** Если поток прерывается, виджет автоматически восстанавливает соединение.
+- **Два режима.** Работает как виджет на рабочем столе (260×180) и как иконка на панели (34×34).
+- **Единый движок.** Потоковый движок реализован как QML _singleton_, поэтому карточка на рабочем столе, иконка на панели и всплывающее окно используют один `MediaPlayer` и одно сетевое соединение.
+
+## Отличия от оригинала
+
+| plasma-lofi-radio | lofi-radio-mini |
+|---|---|
+| Виниловая пластинка с вращением | Нет декоративных элементов |
+| Тонарм с анимацией | Нет тонарма |
+| Анимированный эквалайзер | Нет эквалайзера |
+| Градиентный фиолетовый фон | Системные цвета Plasma |
+| Размер: 296×452 px | Размер: 260×180 px |
+| Сложные Canvas-рисунки | Нативные Kirigami-компоненты |
+
+## Требования
+
+| Компонент | Версия / Примечание |
+| :-- | :-- |
+| **KDE Plasma** | 6.0 или новее |
+| **Qt** | Qt 6 с `qt6-multimedia` (бэкенд FFmpeg) |
+| **Kirigami** | QML-модуль `kirigami` (устанавливается вместе с `plasma-workspace`) |
+| **Python** | 3.8+ — только для вспомогательного скрипта, только стандартная библиотека, без pip-пакетов |
+| **systemd** | Опционально, но рекомендуется для постоянной работы вспомогательного скрипта |
+
+## Установка
+
+### Автоматическая установка (рекомендуется)
+
+```bash
+git clone https://github.com/Caracoto4/plasma-lofi-radio-mini.git
+cd plasma-lofi-radio-mini
+chmod +x install.sh
+./install.sh
+```
+
+Скрипт устанавливает всё в домашнюю директорию, поэтому **права root не требуются**:
+
+- `~/.local/share/plasma/plasmoids/org.koda.lofiradio.mini` — виджет
+- `~/.local/share/lofi-radio-mini/lofi-nowplaying.py` — вспомогательный скрипт для названий треков
+- `~/.config/systemd/user/lofi-nowplaying.service` — пользовательский сервис для скрипта
+
+После установки добавьте виджет: щёлкните правой кнопкой мыши по рабочему столу или панели → **Добавить виджеты…** → **Lofi Radio Mini**.
+
+Если виджет не появился в списке, перезапустите оболочку:
+
+```bash
+systemctl --user restart plasma-plasmashell.service
+```
+
+### Ручная установка
+
+```bash
+# Установка виджета
+kpackagetool6 --type Plasma/Applet --install ./package
+
+# ...или обновление уже установленного виджета
+kpackagetool6 --type Plasma/Applet --upgrade ./package
+
+# Установка вспомогательного скрипта и сервиса
+install -Dm755 helper/lofi-nowplaying.py ~/.local/share/lofi-radio-mini/lofi-nowplaying.py
+install -Dm644 helper/lofi-nowplaying.service ~/.config/systemd/user/lofi-nowplaying.service
+systemctl --user daemon-reload
+systemctl --user enable --now lofi-nowplaying.service
+```
+
+## Удаление
+
+```bash
+./uninstall.sh
+```
+
+Экземпляр виджета, уже размещённый на рабочем столе или панели, необходимо удалить вручную: щёлкните по нему правой кнопкой мыши → **Удалить виджет**.
+
+## Вспомогательный скрипт `lofi-nowplaying.py`
+
+Скрипт поддерживает одно долгоживущее соединение с потоком Icecast, пропускает аудиобайты и публикует каждый блок метаданных, который видит:
+
+```
+GET http://127.0.0.1:8731/nowplaying.json
+
+{
+  "raw": "dryhope - Shade",
+  "artist": "dryhope",
+  "title": "Shade",
+  "station": "LoFi Radio",
+  "stream": "http://live.lofiradio.ru:8000/lofi_mp3_128",
+  "updated": 1792329532,
+  "connected": true
+}
+```
+
+Скрипт слушает только `127.0.0.1`, пытается использовать порты `8731`, `8732`, `8733` по порядку и отвечает `ok` на `GET /health`. При обрыве соединения переподключается с экспоненциальной задержкой.
+
+Проверка статуса и логов:
+
+```bash
+systemctl --user status lofi-nowplaying
+journalctl --user -u lofi-nowplaying -f
+```
+
+Виджет опрашивает скрипт каждые 2 секунды.
+
+> **Важно:** аудио не проходит через вспомогательный скрипт. Если скрипт не работает, музыка всё равно будет играть, но без отображения названий треков.
+
+## Структура репозитория
+
+```
+package/                          Пакет Plasma (устанавливается через kpackagetool6)
+├── metadata.json                 id, имя, версия, категория
+├── contents/ui/main.qml          Апплет: полное представление + зеркало для панели
+└── contents/ui/components/
+    ├── qmldir                    Объявляет модуль org.koda.lofiradio.mini и синглтон StreamPlayer
+    ├── StreamPlayer.qml          QML-синглтон: MediaPlayer, станции, опрос названий
+    └── PlayerCard.qml            Минималистичная визуальная карточка (не зависит от Plasma)
+
+helper/
+├── lofi-nowplaying.py            Метаданные Icecast -> JSON на localhost
+└── lofi-nowplaying.service       Юнит systemd для пользователя
+
+install.sh, uninstall.sh
+```
+
+## Решение проблем
+
+**Нет названий треков, но музыка играет.**
+
+Вспомогательный скрипт недоступен. Проверьте `systemctl --user status lofi-nowplaying` и `curl http://127.0.0.1:8731/nowplaying.json`. Учтите, что `lofiradio.ru` иногда транслирует джингл станции вместо названия песни; виджет показывает то, что сообщает поток.
+
+**Ничего не воспроизводится.**
+
+Qt 6 требует бэкенд FFmpeg для MP3-over-HTTP. Убедитесь, что установлен `qt6-multimedia` и что переменная `QT_MEDIA_BACKEND` не принудительно установлена в другое значение. Проверьте лог Plasma:
+
+```bash
+journalctl --user -u plasma-plasmashell -f
+```
+
+**Виджет отсутствует в списке «Добавить виджеты…».**
+
+Команда `kpackagetool6 --type Plasma/Applet --list` должна показывать `org.koda.lofiradio.mini`. Если показывает, перезапустите plasmashell (см. выше).
+
+## Участие в проекте
+
+Если вы нашли ошибку или хотите предложить улучшение, создайте [Issue](https://github.com/Caracoto4/plasma-lofi-radio-mini/issues) или отправьте Pull Request.
+
+## Лицензия
+
+Код распространяется под лицензией **MIT**. Подробности в файле [LICENSE](LICENSE).
+
+## Благодарности
+
+- **Поток**: [lofiradio.ru](https://lofiradio.ru/) — вся музыка принадлежит им.
+- **Оригинальный виджет**: [plasma-lofi-radio](https://github.com/Caracoto4/plasma-lofi-radio) — вдохновение и базовая архитектура.

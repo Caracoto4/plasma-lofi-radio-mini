@@ -1,0 +1,17 @@
+[Unit]
+Description=Publish the track lofiradio.ru is playing (for the Lofi Radio Mini widget)
+Documentation=https://lofiradio.ru
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 %h/.local/share/lofi-radio-mini/lofi-nowplaying.py
+Restart=always
+RestartSec=5
+NoNewPrivileges=yes
+Nice=10
+
+[Install]
+WantedBy=default.target

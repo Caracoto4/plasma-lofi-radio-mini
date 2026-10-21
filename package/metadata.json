@@ -1,0 +1,21 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Caracoto4"
+            }
+        ],
+        "Category": "Multimedia",
+        "Description": "Minimalist lofi radio player widget for KDE Plasma 6",
+        "Description[ru]": "Минималистичный виджет lofi-радио для KDE Plasma 6",
+        "Icon": "media-playback-start",
+        "Id": "org.koda.lofiradio.mini",
+        "License": "MIT",
+        "Name": "Lofi Radio Mini",
+        "Name[ru]": "Lofi-радио (мини)",
+        "Version": "1.0.0",
+        "Website": "https://lofiradio.ru"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}
