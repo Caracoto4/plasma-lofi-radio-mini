@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import org.kde.plasma.plasmoid
 import org.kde.plasma.core as PlasmaCore
+import org.kde.kirigami as Kirigami
 
 import "components" as Components
 
@@ -17,6 +18,12 @@ PlasmoidItem {
                                     || plasmoid.location === PlasmaCore.Types.RightEdge
                                     || plasmoid.location === PlasmaCore.Types.BottomEdge
 
+    Plasmoid.status: engine.playing ? PlasmaCore.Types.ActiveStatus : PlasmaCore.Types.PassiveStatus
+    Plasmoid.toolTipMainText: "Lofi Radio Mini"
+    Plasmoid.toolTipSubText: engine.playing
+                             ? (engine.title.length > 0 ? "%1 — %2".arg(engine.artist).arg(engine.title) : "Воспроизведение")
+                             : "Остановлено"
+
     fullRepresentation: Item {
         implicitWidth: 260
         implicitHeight: 180
@@ -28,27 +35,36 @@ PlasmoidItem {
         Components.PlayerCard {
             anchors.fill: parent
             engine: root.engine
-            drawBackground: !root.inPanel
+            drawBackground: false
         }
     }
 
     compactRepresentation: Item {
-        implicitWidth: 34
-        implicitHeight: 34
+        id: compactRoot
 
-        Components.PlayerCard {
-            anchors.fill: parent
-            compact: true
-            drawBackground: false
-            previewActive: true
-            previewPlaying: root.engine.playing
-            previewTitle: root.engine.title
-            previewArtist: root.engine.artist
+        implicitWidth: Kirigami.Units.iconSizes.smallMedium
+        implicitHeight: Kirigami.Units.iconSizes.smallMedium
+
+        Layout.preferredWidth: implicitWidth
+        Layout.preferredHeight: implicitHeight
+
+        Kirigami.Icon {
+            id: compactIcon
+            anchors.centerIn: parent
+            width: Math.min(parent.width, parent.height)
+            height: width
+            source: root.engine.playing ? "media-playback-pause" : "media-playback-start"
+
+            opacity: mouseArea.containsMouse ? 0.8 : 1.0
+            Behavior on opacity { NumberAnimation { duration: 150 } }
         }
 
         MouseArea {
+            id: mouseArea
             anchors.fill: parent
+            hoverEnabled: true
             acceptedButtons: Qt.LeftButton
+            cursorShape: Qt.PointingHandCursor
             onClicked: root.expanded = !root.expanded
         }
     }
