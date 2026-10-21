@@ -171,6 +171,29 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self.send_error(404, "not found")
 
+    def do_POST(self) -> None:
+        path = self.path.split("?", 1)[0]
+        if path == "/notify":
+            content_length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_length)
+            try:
+                data = json.loads(body.decode("utf-8"))
+                title = data.get("title", "Lofi Radio")
+                text = data.get("text", "")
+                # Отправка уведомления через notify-send
+                import subprocess
+                subprocess.run(
+                    ["notify-send", "-a", "Lofi Radio", "-i", "audio-x-generic", title, text],
+                    check=False,
+                    capture_output=True
+                )
+                self._send(b'{"status": "ok"}', "application/json")
+            except Exception as e:
+                log("notify error: %s" % e)
+                self.send_error(500, str(e))
+        else:
+            self.send_error(404, "not found")
+
     def do_OPTIONS(self) -> None:
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")

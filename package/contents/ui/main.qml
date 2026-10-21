@@ -13,10 +13,54 @@ PlasmoidItem {
 
     readonly property Components.StreamPlayer engine: Components.StreamPlayer
 
-    readonly property bool inPanel: plasmoid.location === PlasmaCore.Types.TopEdge
-                                    || plasmoid.location === PlasmaCore.Types.LeftEdge
-                                    || plasmoid.location === PlasmaCore.Types.RightEdge
-                                    || plasmoid.location === PlasmaCore.Types.BottomEdge
+    readonly property var notifyPorts: [8731, 8732, 8733]
+
+    // Восстановление состояния при загрузке
+    Component.onCompleted: {
+        var savedVol = plasmoid.configuration.readEntry("volume", -1);
+        if (savedVol >= 0) {
+            engine.volume = savedVol;
+        }
+        var wasPlaying = plasmoid.configuration.readEntry("playing", false);
+        if (wasPlaying) {
+            engine.play();
+        }
+    }
+
+    // Сохранение громкости
+    Connections {
+        target: engine
+        function onVolumeChanged() {
+            plasmoid.configuration.writeEntry("volume", engine.volume);
+        }
+    }
+
+    // Сохранение состояния play/pause + уведомление о смене трека
+    Connections {
+        target: engine
+        function onPlayingChanged() {
+            plasmoid.configuration.writeEntry("playing", engine.playing);
+        }
+        function onTrackChanged() {
+            if (engine.title.length > 0 || engine.artist.length > 0) {
+                sendNotification(
+                    engine.artist.length > 0 ? engine.artist : "Lofi Radio",
+                    engine.title.length > 0 ? engine.title : "Новый трек"
+                );
+            }
+        }
+    }
+
+    function sendNotification(title, text) {
+        for (var i = 0; i < notifyPorts.length; i++) {
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "http://127.0.0.1:" + notifyPorts[i] + "/notify", true);
+            xhr.setRequestHeader("Content-Type", "application/json");
+            xhr.send(JSON.stringify({ title: title, text: text }));
+            // Не ждём ответа, просто отправляем на первый доступный порт
+            break;
+        }
+    }
 
     fullRepresentation: Item {
         implicitWidth: 260
