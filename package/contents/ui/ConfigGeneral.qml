@@ -2,7 +2,6 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
-import org.kde.plasma.plasmoid
 
 Kirigami.FormLayout {
     id: configPage
@@ -14,16 +13,11 @@ Kirigami.FormLayout {
     property bool updateAvailable: false
     property string statusMessage: ""
 
-    // Раздел "Обновления"
     Item {
-        Kirigami.Separator {
-            Layout.fillWidth: true
-        }
-    }
-
-    QQC2.Label {
         Kirigami.FormLayout.label: i18n("Версия")
-        text: configPage.currentVersionString
+        QQC2.Label {
+            text: configPage.currentVersionString
+        }
     }
 
     QQC2.Button {
@@ -47,7 +41,6 @@ Kirigami.FormLayout {
         onClicked: Qt.openUrlExternally("https://github.com/Caracoto4/plasma-lofi-radio-mini/releases/latest")
     }
 
-    // Раздел "О виджете"
     Item {
         Kirigami.Separator {
             Layout.fillWidth: true
