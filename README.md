@@ -9,7 +9,8 @@
 - **Живые названия треков.** Icecast передаёт название песни в формате `StreamTitle='Artist - Title'`, который бэкенд FFmpeg в Qt не предоставляет. Небольшой вспомогательный скрипт на Python (только стандартная библиотека) читает метаданные из сокета и отдаёт их в формате JSON на `127.0.0.1`, чтобы виджет мог показывать текущий трек.
 - **Уведомления о смене трека.** При смене трека появляется системное уведомление с названием и исполнителем.
 - **Сохранение состояния.** Громкость и состояние воспроизведения сохраняются между перезапусками Plasma.
-- **Проверка обновлений.** В настройках виджета есть кнопка "Проверить обновления" для автоматической проверки новой версии.
+- **Проверка обновлений.** В настройках виджета есть кнопка "Проверить обновления" для автоматической проверки новой версии через GitHub API.
+- **Удобное обновление.** Скрипт `update.sh` автоматически обновляет виджет, helper-скрипт и перезапускает сервисы.
 - **Минималистичный дизайн.** Чистый интерфейс без лишних элементов — только название трека, кнопка play/pause и громкость. Используются системные цвета Kirigami.
 - **Бегущая строка.** Название трека прокручивается, если не помещается в отведённое место.
 - **Автопереподключение.** Если поток прерывается, виджет автоматически восстанавливает соединение.
@@ -28,6 +29,7 @@
 | Кнопки prev/next | Только play/pause |
 | Размер: 296×452 px | Размер: 260×180 px |
 | Сложные Canvas-рисунки | Нативные Kirigami-компоненты |
+| Нет проверки обновлений | Проверка через GitHub API |
 
 ## Требования
 
@@ -41,7 +43,7 @@
 
 ## Установка
 
-### Автоматическая установка (рекомендуется)
+### Первая установка
 
 ```bash
 git clone https://github.com/Caracoto4/plasma-lofi-radio-mini.git
@@ -64,21 +66,20 @@ chmod +x install.sh
 systemctl --user restart plasma-plasmashell.service
 ```
 
-### Ручная установка
+### Обновление
 
 ```bash
-# Установка виджета
-kpackagetool6 --type Plasma/Applet --install ./package
-
-# ...или обновление уже установленного виджета
-kpackagetool6 --type Plasma/Applet --upgrade ./package
-
-# Установка вспомогательного скрипта и сервиса
-install -Dm755 helper/lofi-nowplaying.py ~/.local/share/lofi-radio-mini/lofi-nowplaying.py
-install -Dm644 helper/lofi-nowplaying.service ~/.config/systemd/user/lofi-nowplaying.service
-systemctl --user daemon-reload
-systemctl --user enable --now lofi-nowplaying.service
+cd ~/plasma-lofi-radio-mini
+git pull
+./update.sh
 ```
+
+Скрипт `update.sh` автоматически:
+- Обновит виджет через `kpackagetool6`
+- Обновит helper-скрипт
+- Перезапустит сервис и Plasma
+
+Также можно проверить наличие обновлений через настройки виджета: правый клик → **Настроить Lofi Radio Mini...** → **Проверить обновления**.
 
 ## Удаление
 
@@ -125,10 +126,12 @@ journalctl --user -u lofi-nowplaying -f
 package/                          Пакет Plasma (устанавливается через kpackagetool6)
 ├── metadata.json                 id, имя, версия, категория
 ├── contents/
-│   ├── config/main.xml           Конфигурация виджета (громкость, состояние)
+│   ├── config/
+│   │   ├── config.qml            Определяет вкладки настроек (ConfigModel)
+│   │   └── main.xml              Конфигурация виджета (громкость, состояние)
 │   └── ui/
 │       ├── main.qml              Апплет: полное представление + зеркало для панели
-│       ├── config.qml            Страница настроек (проверка обновлений)
+│       ├── configGeneral.qml     Содержимое вкладки "General" (проверка обновлений)
 │       └── components/
 │           ├── qmldir            Объявляет модуль org.koda.lofiradio.mini и синглтон StreamPlayer
 │           ├── StreamPlayer.qml  QML-синглтон: MediaPlayer, поток, опрос названий
@@ -138,7 +141,7 @@ helper/
 ├── lofi-nowplaying.py            Метаданные Icecast -> JSON на localhost + уведомления
 └── lofi-nowplaying.service       Юнит systemd для пользователя
 
-install.sh, uninstall.sh
+install.sh, update.sh, uninstall.sh
 ```
 
 ## Решение проблем

@@ -6,16 +6,18 @@ import org.kde.kirigami 2.4 as Kirigami
 Kirigami.FormLayout {
     id: page
 
-    property int currentVersion: 10100
-    property string currentVersionString: "1.1.0"
-    property string latestVersionString: ""
+    property string currentVersion: "1.2.0"
+    property string currentCommitDate: "2026-01-22T00:00:00Z"
+    property string latestCommitDate: ""
+    property string latestCommitMessage: ""
+    property string latestCommitSha: ""
     property bool checking: false
     property bool updateAvailable: false
     property string statusMessage: ""
 
     QQC2.Label {
         Kirigami.FormData.label: i18n("Версия:")
-        text: page.currentVersionString
+        text: page.currentVersion
     }
 
     QQC2.Button {
@@ -33,10 +35,29 @@ Kirigami.FormLayout {
         Layout.fillWidth: true
     }
 
-    QQC2.Button {
+    // Блок с командами для обновления
+    ColumnLayout {
         visible: page.updateAvailable
-        text: i18n("Скачать обновление")
-        onClicked: Qt.openUrlExternally("https://github.com/Caracoto4/plasma-lofi-radio-mini/releases/latest")
+        spacing: Kirigami.Units.smallSpacing
+        Layout.fillWidth: true
+
+        QQC2.Label {
+            text: i18n("Команды для обновления:")
+            font.bold: true
+        }
+
+        QQC2.Label {
+            text: "cd ~/plasma-lofi-radio-mini\ngit pull\n./update.sh"
+            font.family: "monospace"
+            font.pixelSize: theme.defaultFont.pointSize - 1
+            wrapMode: Text.Wrap
+            Layout.fillWidth: true
+            background: Rectangle {
+                color: Kirigami.Theme.backgroundColor
+                radius: 4
+            }
+            padding: Kirigami.Units.smallSpacing
+        }
     }
 
     Item {
@@ -61,46 +82,46 @@ Kirigami.FormLayout {
 
     function checkForUpdates() {
         page.checking = true;
-        page.latestVersionString = "";
         page.updateAvailable = false;
         page.statusMessage = i18n("Проверка обновлений...");
 
         var xhr = new XMLHttpRequest();
-        xhr.open("GET", "https://api.github.com/repos/Caracoto4/plasma-lofi-radio-mini/releases/latest", true);
+        xhr.open("GET", "https://api.github.com/repos/Caracoto4/plasma-lofi-radio-mini/commits?sha=main&per_page=1", true);
         xhr.onreadystatechange = function() {
             if (xhr.readyState === XMLHttpRequest.DONE) {
                 page.checking = false;
                 if (xhr.status === 200) {
                     try {
                         var data = JSON.parse(xhr.responseText);
-                        var tagName = data.tag_name || "";
-                        page.latestVersionString = tagName.replace(/^v/, "");
-                        
-                        var current = parseVersion(page.currentVersionString);
-                        var latest = parseVersion(page.latestVersionString);
-                        
-                        if (latest > current) {
-                            page.updateAvailable = true;
-                            page.statusMessage = i18n("Доступна новая версия: %1", page.latestVersionString);
+                        if (data.length > 0) {
+                            var commit = data[0];
+                            page.latestCommitSha = commit.sha.substring(0, 7);
+                            page.latestCommitDate = commit.commit.committer.date;
+                            page.latestCommitMessage = commit.commit.message.split("\n")[0];
+                            
+                            // Сравниваем по дате последнего коммита
+                            var latestDate = new Date(page.latestCommitDate);
+                            var currentDate = new Date(page.currentCommitDate);
+                            
+                            if (page.currentCommitDate === "" || latestDate > currentDate) {
+                                page.updateAvailable = true;
+                                page.statusMessage = i18n("Доступно обновление! Последний коммит: %1 (%2)").arg(page.latestCommitMessage).arg(page.latestCommitSha);
+                            } else {
+                                page.statusMessage = i18n("У вас установлена последняя версия");
+                            }
                         } else {
-                            page.statusMessage = i18n("У вас установлена последняя версия");
+                            page.statusMessage = i18n("Не удалось получить информацию о коммитах");
                         }
                     } catch (e) {
                         page.statusMessage = i18n("Ошибка при проверке обновлений");
                         console.log("Failed to parse update info:", e);
                     }
                 } else {
-                    page.statusMessage = i18n("Не удалось проверить обновления (ошибка %1)", xhr.status);
+                    page.statusMessage = i18n("Не удалось проверить обновления (ошибка %1)").arg(xhr.status);
                     console.log("Failed to check for updates, status:", xhr.status);
                 }
             }
         };
         xhr.send();
-    }
-
-    function parseVersion(versionString) {
-        var parts = versionString.split(".");
-        if (parts.length < 3) return 0;
-        return parseInt(parts[0]) * 10000 + parseInt(parts[1]) * 100 + parseInt(parts[2]);
     }
 }
