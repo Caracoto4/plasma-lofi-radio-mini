@@ -11,7 +11,7 @@ PlasmoidItem {
 
     preferredRepresentation: fullRepresentation
 
-    readonly property Components.StreamPlayer engine: Components.StreamPlayer
+    property var engine: Components.StreamPlayer
 
     // Восстановление состояния при загрузке
     Component.onCompleted: {
