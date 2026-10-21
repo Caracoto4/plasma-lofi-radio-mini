@@ -201,49 +201,47 @@ class Handler(BaseHTTPRequestHandler):
             log("update requested")
             try:
                 import subprocess
-                import threading
                 import os
                 
-                # Запускаем обновление в отдельном потоке
-                def run_update():
-                    try:
-                        log("running update.sh...")
-                        
-                        # Запускаем update.sh
-                        update_script = os.path.expanduser("~/.local/share/lofi-radio-mini/update.sh")
-                        
-                        result = subprocess.run(
-                            ["/bin/bash", update_script],
-                            capture_output=True,
-                            text=True,
-                            timeout=120
-                        )
-                        
-                        log("update.sh exit code: %d" % result.returncode)
-                        if result.stdout:
-                            log("update.sh stdout: %s" % result.stdout)
-                        if result.stderr:
-                            log("update.sh stderr: %s" % result.stderr)
-                        
-                        if result.returncode == 0:
-                            log("update completed successfully")
-                        else:
-                            log("update failed with code %d" % result.returncode)
-                            
-                    except subprocess.TimeoutExpired:
-                        log("update.sh timed out after 120 seconds")
-                    except Exception as e:
-                        log("update error: %s" % e)
-                        import traceback
-                        log(traceback.format_exc())
+                log("running update.sh...")
                 
-                # Запускаем в отдельном потоке
-                threading.Thread(target=run_update, daemon=True).start()
+                # Запускаем update.sh синхронно
+                update_script = os.path.expanduser("~/.local/share/lofi-radio-mini/update.sh")
                 
-                self._send(b'{"status": "ok", "message": "update started"}', "application/json")
+                # Проверяем что скрипт существует
+                if not os.path.exists(update_script):
+                    log("update.sh not found at: %s" % update_script)
+                    self._send(b'{"status": "error", "message": "update.sh not found"}', "application/json")
+                    return
+                
+                result = subprocess.run(
+                    ["/bin/bash", update_script],
+                    capture_output=True,
+                    text=True,
+                    timeout=180
+                )
+                
+                log("update.sh exit code: %d" % result.returncode)
+                if result.stdout:
+                    log("update.sh stdout: %s" % result.stdout)
+                if result.stderr:
+                    log("update.sh stderr: %s" % result.stderr)
+                
+                if result.returncode == 0:
+                    log("update completed successfully")
+                    self._send(b'{"status": "ok", "message": "update completed"}', "application/json")
+                else:
+                    log("update failed with code %d" % result.returncode)
+                    self._send(b'{"status": "error", "message": "update failed"}', "application/json")
+                    
+            except subprocess.TimeoutExpired:
+                log("update.sh timed out after 180 seconds")
+                self._send(b'{"status": "error", "message": "update timeout"}', "application/json")
             except Exception as e:
                 log("update error: %s" % e)
-                self.send_error(500, str(e))
+                import traceback
+                log(traceback.format_exc())
+                self._send(b'{"status": "error", "message": "update exception"}', "application/json")
         else:
             self.send_error(404, "not found")
 

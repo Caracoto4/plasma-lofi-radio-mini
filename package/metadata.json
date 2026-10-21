@@ -14,10 +14,10 @@
         "License": "MIT",
         "Name": "Lofi Radio Mini",
         "Name[ru]": "Lofi-радио (мини)",
-        "Version": "1.3.2",
+        "Version": "1.3.3",
         "Website": "https://lofiradio.ru"
     },
     "X-Plasma-API-Minimum-Version": "6.0",
     "X-Plasma-MainScript": "ui/main.qml",
-    "X-Plasma-CommitDate": "2026-01-25T00:00:00Z"
+    "X-Plasma-CommitDate": "2026-01-26T00:00:00Z"
 }
