@@ -6,8 +6,8 @@ import org.kde.kirigami 2.4 as Kirigami
 Kirigami.FormLayout {
     id: page
 
-    property string currentVersion: "1.3.1"
-    property string currentCommitDate: "2026-01-24T00:00:00Z"
+    property string currentVersion: "1.3.2"
+    property string currentCommitDate: "2026-01-25T00:00:00Z"
     property string latestCommitDate: ""
     property string latestCommitMessage: ""
     property string latestCommitSha: ""

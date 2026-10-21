@@ -45,6 +45,7 @@ fi
 info "Устанавливаю helper в $HELPER_DIR"
 install -d -m 755 "$HELPER_DIR"
 install -m 755 "$SRC_DIR/helper/lofi-nowplaying.py" "$HELPER_DIR/lofi-nowplaying.py"
+install -m 755 "$SRC_DIR/update.sh" "$HELPER_DIR/update.sh"
 
 info "Устанавливаю systemd-юнит $UNIT_NAME"
 install -d -m 755 "$UNIT_DIR"
