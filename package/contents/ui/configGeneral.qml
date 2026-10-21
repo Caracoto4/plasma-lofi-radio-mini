@@ -6,8 +6,8 @@ import org.kde.kirigami 2.4 as Kirigami
 Kirigami.FormLayout {
     id: page
 
-    property string currentVersion: "1.3.0"
-    property string currentCommitDate: "2026-01-23T00:00:00Z"
+    property string currentVersion: "1.3.1"
+    property string currentCommitDate: "2026-01-24T00:00:00Z"
     property string latestCommitDate: ""
     property string latestCommitMessage: ""
     property string latestCommitSha: ""
@@ -147,10 +147,15 @@ Kirigami.FormLayout {
                 if (xhr.status === 200) {
                     page.statusMessage = i18n("Обновление установлено! Plasma перезапускается...");
                 } else {
-                    page.statusMessage = i18n("Ошибка установки обновления (код %1)").arg(xhr.status);
-                    console.log("Update failed:", xhr.status);
+                    page.statusMessage = i18n("Ошибка установки обновления. Попробуйте вручную:\ncd ~/plasma-lofi-radio-mini && git pull && ./update.sh");
+                    page.updateAvailable = true;
+                    console.log("Update failed:", xhr.status, xhr.responseText);
                 }
             }
+        };
+        xhr.onerror = function() {
+            page.statusMessage = i18n("Не удалось подключиться к helper-скрипту. Убедитесь что сервис запущен:\nsystemctl --user status lofi-nowplaying");
+            page.updateAvailable = true;
         };
         xhr.send(JSON.stringify({}));
     }

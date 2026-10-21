@@ -14,6 +14,8 @@ NoNewPrivileges=yes
 Nice=10
 # Для доступа к notify-send через DBus
 Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%U/bus
+# PATH для доступа к системным командам (git, rm, chmod, systemctl)
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 [Install]
 WantedBy=default.target

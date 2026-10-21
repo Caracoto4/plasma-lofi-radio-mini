@@ -202,50 +202,69 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 import subprocess
                 import threading
+                import os
+                
+                # Устанавливаем PATH для доступа к системным командам
+                env = os.environ.copy()
+                env['PATH'] = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:' + env.get('PATH', '')
                 
                 # Запускаем обновление в отдельном потоке чтобы не блокировать HTTP ответ
                 def run_update():
                     try:
+                        log("starting update process...")
+                        
                         # Удаляем старую директорию если есть
-                        subprocess.run(["rm", "-rf", "/tmp/plasma-lofi-radio-mini"], check=False)
+                        subprocess.run(["/bin/rm", "-rf", "/tmp/plasma-lofi-radio-mini"], check=False, env=env)
+                        log("cleaned up old directory")
                         
                         # Клонируем репозиторий
                         result = subprocess.run(
-                            ["git", "clone", "https://github.com/Caracoto4/plasma-lofi-radio-mini.git", "/tmp/plasma-lofi-radio-mini"],
+                            ["/usr/bin/git", "clone", "https://github.com/Caracoto4/plasma-lofi-radio-mini.git", "/tmp/plasma-lofi-radio-mini"],
                             check=True,
                             capture_output=True,
-                            text=True
+                            text=True,
+                            env=env
                         )
                         log("git clone successful")
                         
                         # Делаем скрипт исполняемым
                         subprocess.run(
-                            ["chmod", "+x", "/tmp/plasma-lofi-radio-mini/install.sh"],
-                            check=True
+                            ["/bin/chmod", "+x", "/tmp/plasma-lofi-radio-mini/install.sh"],
+                            check=True,
+                            env=env
                         )
+                        log("chmod successful")
                         
                         # Запускаем install.sh
                         result = subprocess.run(
-                            ["/tmp/plasma-lofi-radio-mini/install.sh"],
+                            ["/bin/bash", "/tmp/plasma-lofi-radio-mini/install.sh"],
                             check=True,
                             capture_output=True,
                             text=True,
-                            cwd="/tmp/plasma-lofi-radio-mini"
+                            cwd="/tmp/plasma-lofi-radio-mini",
+                            env=env
                         )
                         log("install.sh successful: %s" % result.stdout)
                         
                         # Перезапускаем plasma-plasmashell
                         subprocess.run(
-                            ["systemctl", "--user", "restart", "plasma-plasmashell.service"],
-                            check=False
+                            ["/usr/bin/systemctl", "--user", "restart", "plasma-plasmashell.service"],
+                            check=False,
+                            env=env
                         )
                         log("plasma-plasmashell restarted")
                         
                         # Очищаем временную директорию
-                        subprocess.run(["rm", "-rf", "/tmp/plasma-lofi-radio-mini"], check=False)
+                        subprocess.run(["/bin/rm", "-rf", "/tmp/plasma-lofi-radio-mini"], check=False, env=env)
+                        log("update completed successfully")
                         
+                    except subprocess.CalledProcessError as e:
+                        log("update command failed: %s" % e.stderr)
+                        log("stdout: %s" % e.stdout)
                     except Exception as e:
                         log("update error: %s" % e)
+                        import traceback
+                        log(traceback.format_exc())
                 
                 # Запускаем в отдельном потоке
                 threading.Thread(target=run_update, daemon=True).start()
@@ -253,6 +272,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(b'{"status": "ok", "message": "update started"}', "application/json")
             except Exception as e:
                 log("update error: %s" % e)
+                import traceback
+                log(traceback.format_exc())
                 self.send_error(500, str(e))
         else:
             self.send_error(404, "not found")
