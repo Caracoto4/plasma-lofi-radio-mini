@@ -18,8 +18,6 @@ PlasmoidItem {
                                     || plasmoid.location === PlasmaCore.Types.RightEdge
                                     || plasmoid.location === PlasmaCore.Types.BottomEdge
 
-    Plasmoid.status: engine.playing ? PlasmaCore.Types.ActiveStatus : PlasmaCore.Types.PassiveStatus
-
     fullRepresentation: Item {
         implicitWidth: 260
         implicitHeight: 180
@@ -50,9 +48,6 @@ PlasmoidItem {
             width: Math.min(parent.width, parent.height)
             height: width
             source: root.engine.playing ? "media-playback-pause" : "media-playback-start"
-
-            opacity: mouseArea.containsMouse ? 0.8 : 1.0
-            Behavior on opacity { NumberAnimation { duration: 150 } }
         }
 
         MouseArea {
@@ -61,7 +56,9 @@ PlasmoidItem {
             hoverEnabled: true
             acceptedButtons: Qt.LeftButton
             cursorShape: Qt.PointingHandCursor
-            onClicked: root.expanded = !root.expanded
+            onClicked: {
+                root.expanded = !root.expanded;
+            }
         }
     }
 }
