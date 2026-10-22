@@ -172,28 +172,6 @@ uninstall.sh                      Удаляет виджет, helper и сер�
 
 Файлы `index.html`, `src/`, `package.json`, `vite.config.js` — лендинг (React + Vite), к установке виджета не относятся.
 
-## Решение проблем
-
-**Нет названий треков, но музыка играет.**
-
-Вспомогательный скрипт недоступен. Проверьте `systemctl --user status lofi-nowplaying` и `curl http://127.0.0.1:8731/nowplaying.json`. Учтите, что `lofiradio.ru` иногда транслирует джингл станции вместо названия песни; виджет показывает то, что сообщает поток.
-
-**Ничего не воспроизводится.**
-
-Qt 6 требует бэкенд FFmpeg для MP3-over-HTTP. Убедитесь, что установлен `qt6-multimedia` и что переменная `QT_MEDIA_BACKEND` не принудительно установлена в другое значение. Проверьте лог Plasma:
-
-```bash
-journalctl --user -u plasma-plasmashell -f
-```
-
-**Виджет отсутствует в списке «Добавить виджеты…».**
-
-Команда `kpackagetool6 --type Plasma/Applet --list` должна показывать `org.koda.lofiradio.mini`. Если показывает, перезапустите plasmashell (см. выше).
-
-## Участие в проекте
-
-Если вы нашли ошибку или хотите предложить улучшение, создайте [Issue](https://github.com/Caracoto4/plasma-lofi-radio-mini/issues) или отправьте Pull Request.
-
 ## Лицензия
 
 Код распространяется под лицензией **MIT**. Подробности в файле [LICENSE](LICENSE).
@@ -201,4 +179,3 @@ journalctl --user -u plasma-plasmashell -f
 ## Благодарности
 
 - **Поток**: [lofiradio.ru](https://lofiradio.ru/) — вся музыка принадлежит им.
-- **Оригинальный виджет**: [plasma-lofi-radio](https://github.com/Caracoto4/plasma-lofi-radio) — вдохновение и базовая архитектура.
